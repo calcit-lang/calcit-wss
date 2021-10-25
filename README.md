@@ -4,14 +4,16 @@
 
 ### Usages
 
-APIs:
+currently 3 APIs are provided:
 
 ```cirru
-wss.core/serve-wss!
+wss.core/wss-serve!
   {} (:port 9000)
-  fn (input)
-    {}
-      :data |TODO
+  fn (income)
+    println income
+
+    wss.core/wss-each! $ fn (id)
+      wss.core/wss-send! id $ str "\"hello from: " income
 ```
 
 Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file with `./build.sh`.

@@ -28,10 +28,10 @@
                         |T $ {} (:type :leaf) (:by |u0) (:at 1634804181370) (:text |get-dylib-path)
         :configs $ {}
         :defs $ {}
-          |serve-wss! $ {} (:type :expr) (:by |u0) (:at 1630219258753)
+          |wss-serve! $ {} (:type :expr) (:by |u0) (:at 1630219258753)
             :data $ {}
               |T $ {} (:type :leaf) (:by |u0) (:at 1630219258753) (:text |defn)
-              |j $ {} (:type :leaf) (:by |u0) (:at 1634969692900) (:text |serve-wss!)
+              |j $ {} (:type :leaf) (:by |u0) (:at 1635145798810) (:text |wss-serve!)
               |r $ {} (:type :expr) (:by |u0) (:at 1630219268038)
                 :data $ {}
                   |T $ {} (:type :leaf) (:by |u0) (:at 1634969697896) (:text |options)
@@ -43,9 +43,43 @@
                     :data $ {}
                       |T $ {} (:type :leaf) (:by |u0) (:at 1634804196083) (:text |get-dylib-path)
                       |j $ {} (:type :leaf) (:by |u0) (:at 1634969809435) (:text "|\"/dylibs/libcalcit_wss")
-                  |r $ {} (:type :leaf) (:by |u0) (:at 1634969703045) (:text "|\"serve_wss")
+                  |r $ {} (:type :leaf) (:by |u0) (:at 1635145980817) (:text "|\"wss_serve")
                   |v $ {} (:type :leaf) (:by |u0) (:at 1634969706450) (:text |options)
                   |x $ {} (:type :leaf) (:by |u0) (:at 1634969708441) (:text |cb)
+          |wss-each! $ {} (:type :expr) (:by |u0) (:at 1635145806315)
+            :data $ {}
+              |T $ {} (:type :leaf) (:by |u0) (:at 1635145806315) (:text |defn)
+              |j $ {} (:type :leaf) (:by |u0) (:at 1635145806315) (:text |wss-each!)
+              |r $ {} (:type :expr) (:by |u0) (:at 1635145808354)
+                :data $ {}
+                  |j $ {} (:type :leaf) (:by |u0) (:at 1635145808354) (:text |cb)
+              |v $ {} (:type :expr) (:by |u0) (:at 1635145808354)
+                :data $ {}
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1635145808354) (:text |&call-dylib-edn-fn)
+                  |j $ {} (:type :expr) (:by |u0) (:at 1635145808354)
+                    :data $ {}
+                      |T $ {} (:type :leaf) (:by |u0) (:at 1635145808354) (:text |get-dylib-path)
+                      |j $ {} (:type :leaf) (:by |u0) (:at 1635145808354) (:text "|\"/dylibs/libcalcit_wss")
+                  |r $ {} (:type :leaf) (:by |u0) (:at 1635145988143) (:text "|\"wss_each")
+                  |x $ {} (:type :leaf) (:by |u0) (:at 1635145808354) (:text |cb)
+          |wss-send! $ {} (:type :expr) (:by |u0) (:at 1635145854895)
+            :data $ {}
+              |T $ {} (:type :leaf) (:by |u0) (:at 1635145854895) (:text |defn)
+              |j $ {} (:type :leaf) (:by |u0) (:at 1635145854895) (:text |wss-send!)
+              |n $ {} (:type :expr) (:by |u0) (:at 1635145859497)
+                :data $ {}
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1635145861294) (:text |client)
+                  |j $ {} (:type :leaf) (:by |u0) (:at 1635145863780) (:text |message)
+              |r $ {} (:type :expr) (:by |u0) (:at 1635145857543)
+                :data $ {}
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1635146242318) (:text |&call-dylib-edn)
+                  |j $ {} (:type :expr) (:by |u0) (:at 1635145857543)
+                    :data $ {}
+                      |T $ {} (:type :leaf) (:by |u0) (:at 1635145857543) (:text |get-dylib-path)
+                      |j $ {} (:type :leaf) (:by |u0) (:at 1635145857543) (:text "|\"/dylibs/libcalcit_wss")
+                  |r $ {} (:type :leaf) (:by |u0) (:at 1635145992351) (:text "|\"wss_send")
+                  |v $ {} (:type :leaf) (:by |u0) (:at 1635145872332) (:text |client)
+                  |x $ {} (:type :leaf) (:by |u0) (:at 1635145874433) (:text |message)
         :proc $ {} (:type :expr) (:by |u0) (:at 1630171366222)
           :data $ {}
       |wss.test $ {}
@@ -62,7 +96,9 @@
                     |j $ {} (:type :leaf) (:by |u0) (:at 1634703859915) (:text |:refer)
                     |r $ {} (:type :expr) (:by |u0) (:at 1634703860100)
                       :data $ {}
-                        |T $ {} (:type :leaf) (:by |u0) (:at 1634969733612) (:text |serve-wss!)
+                        |T $ {} (:type :leaf) (:by |u0) (:at 1635145928417) (:text |wss-serve!)
+                        |j $ {} (:type :leaf) (:by |u0) (:at 1635146122501) (:text |wss-each!)
+                        |r $ {} (:type :leaf) (:by |u0) (:at 1635146125177) (:text |wss-send!)
                 |r $ {} (:type :expr) (:by |u0) (:at 1634703941759)
                   :data $ {}
                     |T $ {} (:type :leaf) (:by |u0) (:at 1634969678173) (:text |wss.$meta)
@@ -96,7 +132,7 @@
                 :data $ {}
               |v $ {} (:type :expr) (:by |u0) (:at 1634969739109)
                 :data $ {}
-                  |T $ {} (:type :leaf) (:by |u0) (:at 1634969739376) (:text |serve-wss!)
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1635145933820) (:text |wss-serve!)
                   |j $ {} (:type :expr) (:by |u0) (:at 1634969740172)
                     :data $ {}
                       |T $ {} (:type :leaf) (:by |u0) (:at 1634969740910) (:text |{})
@@ -114,13 +150,28 @@
                         :data $ {}
                           |T $ {} (:type :leaf) (:by |u0) (:at 1634969758942) (:text |println)
                           |j $ {} (:type :leaf) (:by |u0) (:at 1634969764526) (:text |income)
-                      |v $ {} (:type :expr) (:by |u0) (:at 1634969765687)
+                      |x $ {} (:type :expr) (:by |u0) (:at 1635146115524)
                         :data $ {}
-                          |T $ {} (:type :leaf) (:by |u0) (:at 1634969768387) (:text |{})
-                          |j $ {} (:type :expr) (:by |u0) (:at 1634969768719)
+                          |T $ {} (:type :leaf) (:by |u0) (:at 1635146119614) (:text |wss-each!)
+                          |j $ {} (:type :expr) (:by |u0) (:at 1635146127525)
                             :data $ {}
-                              |T $ {} (:type :leaf) (:by |u0) (:at 1634969770038) (:text |:data)
-                              |j $ {} (:type :leaf) (:by |u0) (:at 1634969770976) (:text "|\"TODO")
+                              |T $ {} (:type :leaf) (:by |u0) (:at 1635146127885) (:text |fn)
+                              |j $ {} (:type :expr) (:by |u0) (:at 1635146128099)
+                                :data $ {}
+                                  |T $ {} (:type :leaf) (:by |u0) (:at 1635146128922) (:text |id)
+                              |r $ {} (:type :expr) (:by |u0) (:at 1635146130191)
+                                :data $ {}
+                                  |T $ {} (:type :leaf) (:by |u0) (:at 1635146133822) (:text |wss-send!)
+                                  |j $ {} (:type :leaf) (:by |u0) (:at 1635146134807) (:text |id)
+                                  |r $ {} (:type :expr) (:by |u0) (:at 1635146138910)
+                                    :data $ {}
+                                      |D $ {} (:type :leaf) (:by |u0) (:at 1635146140983) (:text |str)
+                                      |T $ {} (:type :leaf) (:by |u0) (:at 1635146153808) (:text "|\"hello from: ")
+                                      |j $ {} (:type :leaf) (:by |u0) (:at 1635146157404) (:text |income)
+              |x $ {} (:type :expr) (:by |u0) (:at 1635145934793)
+                :data $ {}
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1635145935765) (:text |println)
+                  |j $ {} (:type :leaf) (:by |u0) (:at 1635145940507) (:text "|\"TODO started")
           |main! $ {} (:type :expr) (:by |u0) (:at 1633149996242)
             :data $ {}
               |T $ {} (:type :leaf) (:by |u0) (:at 1633149996242) (:text |defn)

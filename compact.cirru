@@ -10,22 +10,31 @@
           wss.$meta :refer $ calcit-dirname
           wss.util :refer $ get-dylib-path
       :defs $ {}
-        |serve-wss! $ quote
-          defn serve-wss! (options cb)
-            &call-dylib-edn-fn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"serve_wss" options cb
+        |wss-serve! $ quote
+          defn wss-serve! (options cb)
+            &call-dylib-edn-fn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_serve" options cb
+        |wss-each! $ quote
+          defn wss-each! (cb)
+            &call-dylib-edn-fn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_each" cb
+        |wss-send! $ quote
+          defn wss-send! (client message)
+            &call-dylib-edn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_send" client message
     |wss.test $ {}
       :ns $ quote
         ns wss.test $ :require
-          wss.core :refer $ serve-wss!
+          wss.core :refer $ wss-serve! wss-each! wss-send!
           wss.$meta :refer $ calcit-dirname calcit-filename
       :defs $ {}
         |run-tests $ quote
           defn run-tests () (println "\"%%%% test for lib") (println calcit-filename calcit-dirname)
         |demo! $ quote
-          defn demo! () $ serve-wss!
-            {} $ :port 0
-            fn (income) (println income)
-              {} $ :data "\"TODO"
+          defn demo! ()
+            wss-serve!
+              {} $ :port 0
+              fn (income) (println income)
+                wss-each! $ fn (id)
+                  wss-send! id $ str "\"hello from: " income
+            println "\"TODO started"
         |main! $ quote
           defn main! () $ run-tests
         |reload! $ quote
