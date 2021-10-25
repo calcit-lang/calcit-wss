@@ -2,7 +2,7 @@
 {} (:package |wss)
   :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!)
     :modules $ []
-    :version |0.0.3
+    :version |0.0.1-a2
   :files $ {}
     |wss.core $ {}
       :ns $ quote
@@ -10,15 +10,15 @@
           wss.$meta :refer $ calcit-dirname
           wss.util :refer $ get-dylib-path
       :defs $ {}
-        |wss-serve! $ quote
-          defn wss-serve! (options cb)
-            &call-dylib-edn-fn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_serve" options cb
         |wss-each! $ quote
           defn wss-each! (cb)
             &call-dylib-edn-fn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_each" cb
         |wss-send! $ quote
           defn wss-send! (client message)
             &call-dylib-edn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_send" client message
+        |wss-serve! $ quote
+          defn wss-serve! (options cb)
+            &call-dylib-edn-fn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_serve" options cb
     |wss.test $ {}
       :ns $ quote
         ns wss.test $ :require

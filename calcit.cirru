@@ -28,24 +28,6 @@
                         |T $ {} (:type :leaf) (:by |u0) (:at 1634804181370) (:text |get-dylib-path)
         :configs $ {}
         :defs $ {}
-          |wss-serve! $ {} (:type :expr) (:by |u0) (:at 1630219258753)
-            :data $ {}
-              |T $ {} (:type :leaf) (:by |u0) (:at 1630219258753) (:text |defn)
-              |j $ {} (:type :leaf) (:by |u0) (:at 1635145798810) (:text |wss-serve!)
-              |r $ {} (:type :expr) (:by |u0) (:at 1630219268038)
-                :data $ {}
-                  |T $ {} (:type :leaf) (:by |u0) (:at 1634969697896) (:text |options)
-                  |j $ {} (:type :leaf) (:by |u0) (:at 1634969695249) (:text |cb)
-              |v $ {} (:type :expr) (:by |u0) (:at 1630219268038)
-                :data $ {}
-                  |T $ {} (:type :leaf) (:by |u0) (:at 1634969799070) (:text |&call-dylib-edn-fn)
-                  |b $ {} (:type :expr) (:by |u0) (:at 1634804189975)
-                    :data $ {}
-                      |T $ {} (:type :leaf) (:by |u0) (:at 1634804196083) (:text |get-dylib-path)
-                      |j $ {} (:type :leaf) (:by |u0) (:at 1634969809435) (:text "|\"/dylibs/libcalcit_wss")
-                  |r $ {} (:type :leaf) (:by |u0) (:at 1635145980817) (:text "|\"wss_serve")
-                  |v $ {} (:type :leaf) (:by |u0) (:at 1634969706450) (:text |options)
-                  |x $ {} (:type :leaf) (:by |u0) (:at 1634969708441) (:text |cb)
           |wss-each! $ {} (:type :expr) (:by |u0) (:at 1635145806315)
             :data $ {}
               |T $ {} (:type :leaf) (:by |u0) (:at 1635145806315) (:text |defn)
@@ -80,6 +62,24 @@
                   |r $ {} (:type :leaf) (:by |u0) (:at 1635145992351) (:text "|\"wss_send")
                   |v $ {} (:type :leaf) (:by |u0) (:at 1635145872332) (:text |client)
                   |x $ {} (:type :leaf) (:by |u0) (:at 1635145874433) (:text |message)
+          |wss-serve! $ {} (:type :expr) (:by |u0) (:at 1630219258753)
+            :data $ {}
+              |T $ {} (:type :leaf) (:by |u0) (:at 1630219258753) (:text |defn)
+              |j $ {} (:type :leaf) (:by |u0) (:at 1635145798810) (:text |wss-serve!)
+              |r $ {} (:type :expr) (:by |u0) (:at 1630219268038)
+                :data $ {}
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1634969697896) (:text |options)
+                  |j $ {} (:type :leaf) (:by |u0) (:at 1634969695249) (:text |cb)
+              |v $ {} (:type :expr) (:by |u0) (:at 1630219268038)
+                :data $ {}
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1634969799070) (:text |&call-dylib-edn-fn)
+                  |b $ {} (:type :expr) (:by |u0) (:at 1634804189975)
+                    :data $ {}
+                      |T $ {} (:type :leaf) (:by |u0) (:at 1634804196083) (:text |get-dylib-path)
+                      |j $ {} (:type :leaf) (:by |u0) (:at 1634969809435) (:text "|\"/dylibs/libcalcit_wss")
+                  |r $ {} (:type :leaf) (:by |u0) (:at 1635145980817) (:text "|\"wss_serve")
+                  |v $ {} (:type :leaf) (:by |u0) (:at 1634969706450) (:text |options)
+                  |x $ {} (:type :leaf) (:by |u0) (:at 1634969708441) (:text |cb)
         :proc $ {} (:type :expr) (:by |u0) (:at 1630171366222)
           :data $ {}
       |wss.test $ {}
@@ -266,4 +266,4 @@
           :data $ {}
   :configs $ {} (:port 6001) (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!)
     :modules $ []
-    :version |0.0.3
+    :version |0.0.1-a2
