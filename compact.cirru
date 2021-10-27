@@ -2,7 +2,7 @@
 {} (:package |wss)
   :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!)
     :modules $ []
-    :version |0.0.1-a2
+    :version |0.0.1
   :files $ {}
     |wss.core $ {}
       :ns $ quote
@@ -30,15 +30,15 @@
         |demo! $ quote
           defn demo! ()
             wss-serve!
-              {} $ :port 0
+              {} $ :port 9001
               fn (income) (println income)
                 wss-each! $ fn (id)
                   wss-send! id $ str "\"hello from: " income
-            println "\"TODO started"
+            println "\"demo started"
         |main! $ quote
           defn main! () $ run-tests
         |reload! $ quote
-          defn reload! $
+          defn reload! () $ println "\"did nothing on reload"
     |wss.util $ {}
       :ns $ quote
         ns wss.util $ :require
