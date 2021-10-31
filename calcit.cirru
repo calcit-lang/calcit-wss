@@ -139,7 +139,7 @@
                       |j $ {} (:type :expr) (:by |u0) (:at 1634969741701)
                         :data $ {}
                           |T $ {} (:type :leaf) (:by |u0) (:at 1634969743184) (:text |:port)
-                          |j $ {} (:type :leaf) (:by |u0) (:at 1634969744633) (:text |0)
+                          |j $ {} (:type :leaf) (:by |u0) (:at 1635317855022) (:text |9001)
                   |r $ {} (:type :expr) (:by |u0) (:at 1634969749769)
                     :data $ {}
                       |T $ {} (:type :leaf) (:by |u0) (:at 1634969750160) (:text |fn)
@@ -171,7 +171,7 @@
               |x $ {} (:type :expr) (:by |u0) (:at 1635145934793)
                 :data $ {}
                   |T $ {} (:type :leaf) (:by |u0) (:at 1635145935765) (:text |println)
-                  |j $ {} (:type :leaf) (:by |u0) (:at 1635145940507) (:text "|\"TODO started")
+                  |j $ {} (:type :leaf) (:by |u0) (:at 1635317967071) (:text "|\"demo started")
           |main! $ {} (:type :expr) (:by |u0) (:at 1633149996242)
             :data $ {}
               |T $ {} (:type :leaf) (:by |u0) (:at 1633149996242) (:text |defn)
@@ -187,6 +187,10 @@
               |j $ {} (:type :leaf) (:by |u0) (:at 1633149998862) (:text |reload!)
               |r $ {} (:type :expr) (:by |u0) (:at 1633149998862)
                 :data $ {}
+              |v $ {} (:type :expr) (:by |u0) (:at 1635317973495)
+                :data $ {}
+                  |T $ {} (:type :leaf) (:by |u0) (:at 1635317976841) (:text |println)
+                  |j $ {} (:type :leaf) (:by |u0) (:at 1635317981752) (:text "|\"did nothing on reload")
         :proc $ {} (:type :expr) (:by |u0) (:at 1633149625774)
           :data $ {}
       |wss.util $ {}
@@ -266,4 +270,4 @@
           :data $ {}
   :configs $ {} (:port 6001) (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!)
     :modules $ []
-    :version |0.0.1-a2
+    :version |0.0.1

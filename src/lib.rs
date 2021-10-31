@@ -10,9 +10,15 @@ lazy_static! {
 }
 
 #[no_mangle]
+pub fn abi_version() -> String {
+  String::from("0.0.1")
+}
+
+#[no_mangle]
 pub fn wss_serve(
   args: Vec<Edn>,
   handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
+  _finish: Box<dyn FnOnce()>,
 ) -> Result<Edn, String> {
   let port = match args.get(0) {
     Some(Edn::Map(m)) => match m.get(&Edn::Keyword(String::from("port"))) {
@@ -27,6 +33,7 @@ pub fn wss_serve(
 
   // listen for WebSockets on port, defaults to 9001:
   let event_hub = simple_websockets::launch(port).expect("failed to listen on port 9001");
+  println!("WebSocket server started at port {}", port);
 
   spawn(move || {
     loop {
@@ -112,6 +119,7 @@ pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
 pub fn wss_each(
   _args: Vec<Edn>,
   handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
+  finish: Box<dyn FnOnce()>,
 ) -> Result<Edn, String> {
   let mut ids: Vec<u64> = vec![];
   {
@@ -127,5 +135,6 @@ pub fn wss_each(
     handler(vec![Edn::Number(id as f64)])?;
   }
 
+  finish();
   Ok(Edn::Nil)
 }
