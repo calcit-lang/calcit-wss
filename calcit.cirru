@@ -270,4 +270,4 @@
           :data $ {}
   :configs $ {} (:port 6001) (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!)
     :modules $ []
-    :version |0.0.1
+    :version |0.0.2

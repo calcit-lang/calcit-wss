@@ -11,7 +11,7 @@ lazy_static! {
 
 #[no_mangle]
 pub fn abi_version() -> String {
-  String::from("0.0.1")
+  String::from("0.0.5")
 }
 
 #[no_mangle]
@@ -21,7 +21,7 @@ pub fn wss_serve(
   _finish: Box<dyn FnOnce()>,
 ) -> Result<Edn, String> {
   let port = match args.get(0) {
-    Some(Edn::Map(m)) => match m.get(&Edn::Keyword(String::from("port"))) {
+    Some(Edn::Map(m)) => match m.get(&Edn::kwd("port")) {
       Some(Edn::Number(n)) => n.floor().round() as u16,
       Some(a) => return Err(format!("Unknown port: {}", a)),
       None => 9001,
@@ -50,7 +50,7 @@ pub fn wss_serve(
             clients.insert(client_id, responder);
           }
           if let Err(e) = handler(vec![Edn::List(vec![
-            Edn::Keyword(String::from("connect")),
+            Edn::kwd("connect"),
             Edn::Number(client_id as f64),
           ])]) {
             println!("Failed to handle connect: {}", e)
@@ -63,7 +63,7 @@ pub fn wss_serve(
             clients.remove(&client_id);
           }
           if let Err(e) = handler(vec![Edn::List(vec![
-            Edn::Keyword(String::from("disconnect")),
+            Edn::kwd("disconnect"),
             Edn::Number(client_id as f64),
           ])]) {
             println!("Failed to handle disconnect: {}", e)
@@ -72,16 +72,16 @@ pub fn wss_serve(
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {
             if let Err(e) = handler(vec![Edn::List(vec![
-              Edn::Keyword(String::from("message")),
+              Edn::kwd("message"),
               Edn::Number(client_id as f64),
-              Edn::Str(s),
+              Edn::Str(s.into_boxed_str()),
             ])]) {
               println!("Failed to handle text message: {}", e)
             }
           }
           Message::Binary(buf) => {
             if let Err(e) = handler(vec![Edn::List(vec![
-              Edn::Keyword(String::from("message")),
+              Edn::kwd("message"),
               Edn::Number(client_id as f64),
               Edn::Buffer(buf),
             ])]) {
@@ -105,7 +105,7 @@ pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
         let clients = CLIENTS.read().unwrap();
         let responder = clients.get(&(*id as u64)).unwrap();
         // echo the message back:
-        responder.send(Message::Text(s.to_owned()));
+        responder.send(Message::Text(s.to_string().to_owned()));
         Ok(Edn::Nil)
       }
       (a, b) => Err(format!("wss-send expected id and message, got {} {}", a, b)),
