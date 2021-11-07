@@ -49,7 +49,7 @@ checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
 
 [[package]]
 name = "calcit_wss"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "cirru_edn",
  "lazy_static",
@@ -64,9 +64,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cirru_edn"
-version = "0.2.8"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4888ae76433b2504f820e97d63297db438f9d3ba377456f203ebb0747282c613"
+checksum = "1f5ffaa819a99199ac525717f7f0fc81a45f55ae5b0dd58ddaae5e9c90395b6a"
 dependencies = [
  "cirru_parser",
  "hex",
@@ -75,9 +75,9 @@ dependencies = [
 
 [[package]]
 name = "cirru_parser"
-version = "0.1.12"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7344fe701ed60135a9caad1269b200a7dc559abd9860ac5a8b29c674ce579a05"
+checksum = "8bb2c30ea548736eb363293ee669c7f51d00f5170402b9eb82f7a55bef2c631d"
 
 [[package]]
 name = "cpufeatures"
