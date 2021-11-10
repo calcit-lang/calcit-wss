@@ -37,12 +37,7 @@ pub fn wss_serve(
 
   spawn(move || {
     loop {
-      let event = match event_hub.next_event() {
-        Some(e) => e,
-        None => continue,
-      };
-
-      match event {
+      match event_hub.poll_event() {
         Event::Connect(client_id, responder) => {
           {
             // add their Responder to our `clients` map:
@@ -68,6 +63,8 @@ pub fn wss_serve(
           ])]) {
             println!("Failed to handle disconnect: {}", e)
           }
+
+          break;
         }
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {

@@ -18,6 +18,14 @@ wss.core/wss-serve!
 
 Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file with `./build.sh`.
 
+### Develop
+
+Run buildin demo with:
+
+```bash
+cr -1 --init-fn wss.test/demo!
+```
+
 ### Workflow
 
 https://github.com/calcit-lang/dylib-workflow
