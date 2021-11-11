@@ -35,7 +35,7 @@ pub fn wss_serve(
   let event_hub = simple_websockets::launch(port).expect("failed to listen on port 9001");
   println!("WebSocket server started at port {}", port);
 
-  spawn(move || {
+  let task = spawn(move || {
     loop {
       match event_hub.poll_event() {
         Event::Connect(client_id, responder) => {
@@ -89,6 +89,8 @@ pub fn wss_serve(
       }
     }
   });
+
+  task.join().expect("running WebSocket server");
 
   Ok(Edn::Nil)
 }
