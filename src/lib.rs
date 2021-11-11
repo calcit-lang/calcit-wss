@@ -63,8 +63,6 @@ pub fn wss_serve(
           ])]) {
             println!("Failed to handle disconnect: {}", e)
           }
-
-          break;
         }
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {

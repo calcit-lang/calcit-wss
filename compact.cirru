@@ -2,7 +2,8 @@
 {} (:package |wss)
   :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!)
     :modules $ []
-    :version |0.0.5
+    :version |0.0.6
+  :entries $ {}
   :files $ {}
     |wss.core $ {}
       :ns $ quote
