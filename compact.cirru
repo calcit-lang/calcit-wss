@@ -1,15 +1,10 @@
 
 {} (:package |wss)
-  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!)
+  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!) (:version |0.0.7)
     :modules $ []
-    :version |0.0.6
   :entries $ {}
   :files $ {}
     |wss.core $ {}
-      :ns $ quote
-        ns wss.core $ :require
-          wss.$meta :refer $ calcit-dirname
-          wss.util :refer $ get-dylib-path
       :defs $ {}
         |wss-each! $ quote
           defn wss-each! (cb)
@@ -20,14 +15,12 @@
         |wss-serve! $ quote
           defn wss-serve! (options cb)
             &call-dylib-edn-fn (get-dylib-path "\"/dylibs/libcalcit_wss") "\"wss_serve" options cb
-    |wss.test $ {}
       :ns $ quote
-        ns wss.test $ :require
-          wss.core :refer $ wss-serve! wss-each! wss-send!
-          wss.$meta :refer $ calcit-dirname calcit-filename
+        ns wss.core $ :require
+          wss.$meta :refer $ calcit-dirname
+          wss.util :refer $ get-dylib-path
+    |wss.test $ {}
       :defs $ {}
-        |run-tests $ quote
-          defn run-tests () (println "\"%%%% test for lib") (println calcit-filename calcit-dirname)
         |demo! $ quote
           defn demo! ()
             wss-serve!
@@ -40,10 +33,13 @@
           defn main! () $ run-tests
         |reload! $ quote
           defn reload! () $ println "\"did nothing on reload"
-    |wss.util $ {}
+        |run-tests $ quote
+          defn run-tests () (println "\"%%%% test for lib") (println calcit-filename calcit-dirname)
       :ns $ quote
-        ns wss.util $ :require
+        ns wss.test $ :require
+          wss.core :refer $ wss-serve! wss-each! wss-send!
           wss.$meta :refer $ calcit-dirname calcit-filename
+    |wss.util $ {}
       :defs $ {}
         |get-dylib-ext $ quote
           defmacro get-dylib-ext () $ case-default (&get-os) "\".so" (:macos "\".dylib") (:windows "\".dll")
@@ -53,3 +49,6 @@
         |or-current-path $ quote
           defn or-current-path (p)
             if (blank? p) "\"." p
+      :ns $ quote
+        ns wss.util $ :require
+          wss.$meta :refer $ calcit-dirname calcit-filename
