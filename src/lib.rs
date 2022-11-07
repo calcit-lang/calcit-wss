@@ -44,10 +44,7 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.insert(client_id, responder);
           }
-          if let Err(e) = handler(vec![Edn::List(vec![
-            Edn::kwd("connect"),
-            Edn::Number(client_id as f64),
-          ])]) {
+          if let Err(e) = handler(vec![Edn::List(vec![Edn::kwd("connect"), Edn::Number(client_id as f64)])]) {
             println!("Failed to handle connect: {}", e)
           }
         }
@@ -57,10 +54,7 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.remove(&client_id);
           }
-          if let Err(e) = handler(vec![Edn::List(vec![
-            Edn::kwd("disconnect"),
-            Edn::Number(client_id as f64),
-          ])]) {
+          if let Err(e) = handler(vec![Edn::List(vec![Edn::kwd("disconnect"), Edn::Number(client_id as f64)])]) {
             println!("Failed to handle disconnect: {}", e)
           }
         }

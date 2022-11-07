@@ -49,7 +49,7 @@ checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
 
 [[package]]
 name = "calcit_wss"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "cirru_edn",
  "lazy_static",
@@ -64,9 +64,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cirru_edn"
-version = "0.2.9"
+version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f5ffaa819a99199ac525717f7f0fc81a45f55ae5b0dd58ddaae5e9c90395b6a"
+checksum = "63c8eadc7d7e440b6e2dce8b6ef16e688dc1a36dfcac8a627a1e769672664955"
 dependencies = [
  "cirru_parser",
  "hex",
@@ -75,9 +75,9 @@ dependencies = [
 
 [[package]]
 name = "cirru_parser"
-version = "0.1.14"
+version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bb2c30ea548736eb363293ee669c7f51d00f5170402b9eb82f7a55bef2c631d"
+checksum = "0c942c2dafb7e7cab267b66e6ccbb0b4ef11a471b83c90a9e072cdd02d2081aa"
 
 [[package]]
 name = "cpufeatures"
@@ -209,9 +209,9 @@ dependencies = [
 
 [[package]]
 name = "hex"
-version = "0.3.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "http"
@@ -547,9 +547,9 @@ dependencies = [
 
 [[package]]
 name = "simple-websockets"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23acc2eb61d306a05080193af96528aa2c9b78ef7d57abe7697a4b8ad51bc40c"
+checksum = "5d84f51a3ac19691be4b2153db609e09bd55388e5acafd1f28b4110d8cfa2c63"
 dependencies = [
  "flume",
  "futures-util",
