@@ -21,7 +21,7 @@ pub fn wss_serve(
   _finish: Box<dyn FnOnce()>,
 ) -> Result<Edn, String> {
   let port = match args.get(0) {
-    Some(Edn::Map(m)) => match m.get(&Edn::kwd("port")) {
+    Some(Edn::Map(m)) => match m.get(&Edn::tag("port")) {
       Some(Edn::Number(n)) => n.floor().round() as u16,
       Some(a) => return Err(format!("Unknown port: {}", a)),
       None => 9001,
@@ -44,7 +44,7 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.insert(client_id, responder);
           }
-          if let Err(e) = handler(vec![Edn::List(vec![Edn::kwd("connect"), Edn::Number(client_id as f64)])]) {
+          if let Err(e) = handler(vec![Edn::List(vec![Edn::tag("connect"), Edn::Number(client_id as f64)])]) {
             println!("Failed to handle connect: {}", e)
           }
         }
@@ -54,14 +54,14 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.remove(&client_id);
           }
-          if let Err(e) = handler(vec![Edn::List(vec![Edn::kwd("disconnect"), Edn::Number(client_id as f64)])]) {
+          if let Err(e) = handler(vec![Edn::List(vec![Edn::tag("disconnect"), Edn::Number(client_id as f64)])]) {
             println!("Failed to handle disconnect: {}", e)
           }
         }
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {
             if let Err(e) = handler(vec![Edn::List(vec![
-              Edn::kwd("message"),
+              Edn::tag("message"),
               Edn::Number(client_id as f64),
               Edn::Str(s.into_boxed_str()),
             ])]) {
@@ -70,7 +70,7 @@ pub fn wss_serve(
           }
           Message::Binary(buf) => {
             if let Err(e) = handler(vec![Edn::List(vec![
-              Edn::kwd("message"),
+              Edn::tag("message"),
               Edn::Number(client_id as f64),
               Edn::Buffer(buf),
             ])]) {
