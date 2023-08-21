@@ -1,6 +1,6 @@
 [package]
 name = "calcit_wss"
-version = "0.1.0"
+version = "0.2.0-a1"
 authors = ["jiyinyiyong <jiyinyiyong@gmail.com>"]
 edition = "2021"
 
@@ -13,7 +13,7 @@ crate-type = ["dylib"] # Creates dynamic lib
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cirru_edn = "0.4.0"
+cirru_edn = "0.4.2"
 lazy_static = "1.4.0"
-simple-websockets = "0.1.5"
+simple-websockets = "0.1.6"
 
