@@ -44,7 +44,7 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.insert(client_id, responder);
           }
-          if let Err(e) = handler(vec![Edn::List(vec![Edn::tag("connect"), Edn::Number(client_id as f64)])]) {
+          if let Err(e) = handler(vec![Edn::Tuple(Box::new(Edn::tag("connect")), vec![Edn::Number(client_id as f64)])]) {
             println!("Failed to handle connect: {}", e)
           }
         }
@@ -54,26 +54,27 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.remove(&client_id);
           }
-          if let Err(e) = handler(vec![Edn::List(vec![Edn::tag("disconnect"), Edn::Number(client_id as f64)])]) {
+          if let Err(e) = handler(vec![Edn::Tuple(
+            Box::new(Edn::tag("disconnect")),
+            vec![Edn::Number(client_id as f64)],
+          )]) {
             println!("Failed to handle disconnect: {}", e)
           }
         }
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {
-            if let Err(e) = handler(vec![Edn::List(vec![
-              Edn::tag("message"),
-              Edn::Number(client_id as f64),
-              Edn::Str(s.into_boxed_str()),
-            ])]) {
+            if let Err(e) = handler(vec![Edn::Tuple(
+              Box::new(Edn::tag("message")),
+              vec![Edn::Number(client_id as f64), Edn::Str(s.into_boxed_str())],
+            )]) {
               println!("Failed to handle text message: {}", e)
             }
           }
           Message::Binary(buf) => {
-            if let Err(e) = handler(vec![Edn::List(vec![
-              Edn::tag("message"),
-              Edn::Number(client_id as f64),
-              Edn::Buffer(buf),
-            ])]) {
+            if let Err(e) = handler(vec![Edn::Tuple(
+              Box::new(Edn::tag("blob")),
+              vec![Edn::Number(client_id as f64), Edn::Buffer(buf)],
+            )]) {
               println!("Failed to handle binary message: {}", e)
             }
           }
