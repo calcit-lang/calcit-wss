@@ -1,10 +1,10 @@
 
 {} (:package |wss)
-  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!) (:version |0.2.0-a2)
+  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!) (:version |0.2.0-a3)
     :modules $ []
   :entries $ {}
   :files $ {}
-    |wss.core $ {}
+    |wss.core $ %{} :FileEntry
       :defs $ {}
         |wss-each! $ %{} :CodeEntry (:doc |)
           :code $ quote
@@ -23,7 +23,7 @@
           ns wss.core $ :require
             wss.$meta :refer $ calcit-dirname
             wss.util :refer $ get-dylib-path
-    |wss.test $ {}
+    |wss.test $ %{} :FileEntry
       :defs $ {}
         |demo! $ %{} :CodeEntry (:doc |)
           :code $ quote
@@ -48,7 +48,7 @@
           ns wss.test $ :require
             wss.core :refer $ wss-serve! wss-each! wss-send!
             wss.$meta :refer $ calcit-dirname calcit-filename
-    |wss.util $ {}
+    |wss.util $ %{} :FileEntry
       :defs $ {}
         |get-dylib-ext $ %{} :CodeEntry (:doc |)
           :code $ quote

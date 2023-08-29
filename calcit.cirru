@@ -1,11 +1,10 @@
 
 {} (:package |wss)
-  :configs $ {} (:init-fn |wss.test/main!) (:port 6001) (:reload-fn |wss.test/reload!) (:version |0.2.0-a2)
+  :configs $ {} (:init-fn |wss.test/main!) (:port 6001) (:reload-fn |wss.test/reload!) (:version |0.2.0-a3)
     :modules $ []
   :entries $ {}
   :files $ {}
-    |wss.core $ {}
-      :configs $ {}
+    |wss.core $ %{} :FileEntry
       :defs $ {}
         |wss-each! $ %{} :CodeEntry (:doc |)
           :code $ %{} :Expr (:at 1635145806315) (:by |u0)
@@ -84,8 +83,7 @@
                     |r $ %{} :Expr (:at 1633181140100) (:by |u0)
                       :data $ {}
                         |T $ %{} :Leaf (:at 1634804181370) (:by |u0) (:text |get-dylib-path)
-    |wss.test $ {}
-      :configs $ {}
+    |wss.test $ %{} :FileEntry
       :defs $ {}
         |demo! $ %{} :CodeEntry (:doc |)
           :code $ %{} :Expr (:at 1634969729308) (:by |u0)
@@ -198,8 +196,7 @@
                       :data $ {}
                         |T $ %{} :Leaf (:at 1634703941759) (:by |u0) (:text |calcit-dirname)
                         |j $ %{} :Leaf (:at 1634703953240) (:by |u0) (:text |calcit-filename)
-    |wss.util $ {}
-      :configs $ {}
+    |wss.util $ %{} :FileEntry
       :defs $ {}
         |get-dylib-ext $ %{} :CodeEntry (:doc |)
           :code $ %{} :Expr (:at 1630231398718) (:by |u0)
