@@ -1,4 +1,4 @@
-use cirru_edn::Edn;
+use cirru_edn::{Edn, EdnTupleView};
 use lazy_static::lazy_static;
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ pub fn wss_serve(
   _finish: Box<dyn FnOnce()>,
 ) -> Result<Edn, String> {
   let port = match args.first() {
-    Some(Edn::Map(m)) => match m.get(&Edn::tag("port")) {
+    Some(Edn::Map(m)) => match m.get("port") {
       Some(Edn::Number(n)) => n.floor().round() as u16,
       Some(a) => return Err(format!("Unknown port: {}", a)),
       None => 9001,
@@ -44,7 +44,10 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.insert(client_id, responder);
           }
-          if let Err(e) = handler(vec![Edn::Tuple(Arc::new(Edn::tag("connect")), vec![Edn::Number(client_id as f64)])]) {
+          if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+            tag: Arc::new(Edn::tag("connect")),
+            extra: vec![Edn::Number(client_id as f64)],
+          })]) {
             println!("Failed to handle connect: {}", e)
           }
         }
@@ -54,27 +57,27 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.remove(&client_id);
           }
-          if let Err(e) = handler(vec![Edn::Tuple(
-            Arc::new(Edn::tag("disconnect")),
-            vec![Edn::Number(client_id as f64)],
-          )]) {
+          if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+            tag: Arc::new(Edn::tag("disconnect")),
+            extra: vec![Edn::Number(client_id as f64)],
+          })]) {
             println!("Failed to handle disconnect: {}", e)
           }
         }
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {
-            if let Err(e) = handler(vec![Edn::Tuple(
-              Arc::new(Edn::tag("message")),
-              vec![Edn::Number(client_id as f64), Edn::Str(s.into())],
-            )]) {
+            if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+              tag: Arc::new(Edn::tag("message")),
+              extra: vec![Edn::Number(client_id as f64), Edn::Str(s.into())],
+            })]) {
               println!("Failed to handle text message: {}", e)
             }
           }
           Message::Binary(buf) => {
-            if let Err(e) = handler(vec![Edn::Tuple(
-              Arc::new(Edn::tag("blob")),
-              vec![Edn::Number(client_id as f64), Edn::Buffer(buf)],
-            )]) {
+            if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+              tag: Arc::new(Edn::tag("blob")),
+              extra: vec![Edn::Number(client_id as f64), Edn::Buffer(buf)],
+            })]) {
               println!("Failed to handle binary message: {}", e)
             }
           }
