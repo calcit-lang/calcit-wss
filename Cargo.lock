@@ -62,7 +62,7 @@ checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
 
 [[package]]
 name = "calcit_wss"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "cirru_edn",
  "lazy_static",
@@ -77,9 +77,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cirru_edn"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08d343bd5f40a4d0c77552307fa1d4a1457ebdafe988a5a478c8b15b59b89087"
+checksum = "b4e435d0f66a1d16f727720f46a89c7a203e306bf466483ba5ff65903fd0f05c"
 dependencies = [
  "bincode",
  "cirru_parser",

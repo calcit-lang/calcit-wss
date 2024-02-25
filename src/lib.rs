@@ -21,7 +21,7 @@ pub fn wss_serve(
   _finish: Box<dyn FnOnce()>,
 ) -> Result<Edn, String> {
   let port = match args.first() {
-    Some(Edn::Map(m)) => match m.get("port") {
+    Some(Edn::Map(m)) => match m.tag_get("port") {
       Some(Edn::Number(n)) => n.floor().round() as u16,
       Some(a) => return Err(format!("Unknown port: {}", a)),
       None => 9001,
