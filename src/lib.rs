@@ -11,7 +11,7 @@ lazy_static! {
 
 #[no_mangle]
 pub fn abi_version() -> String {
-  String::from("0.0.7")
+  String::from("0.0.8")
 }
 
 #[no_mangle]

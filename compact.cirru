@@ -1,6 +1,6 @@
 
 {} (:package |wss)
-  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!) (:version |0.2.1)
+  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!) (:version |0.2.4)
     :modules $ []
   :entries $ {}
   :files $ {}
