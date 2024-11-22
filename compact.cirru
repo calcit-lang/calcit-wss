@@ -1,6 +1,6 @@
 
 {} (:package |wss)
-  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!) (:version |0.2.5)
+  :configs $ {} (:init-fn |wss.test/main!) (:reload-fn |wss.test/reload!) (:version |0.2.6)
     :modules $ []
   :entries $ {}
     :demo $ {} (:init-fn |wss.test/demo!) (:port 6001) (:reload-fn |wss.test/reload!)

@@ -62,10 +62,9 @@ checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
 
 [[package]]
 name = "calcit_wss"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "cirru_edn",
- "lazy_static",
  "simple-websockets",
 ]
 
@@ -77,23 +76,35 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cirru_edn"
-version = "0.6.5"
+version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf2af443516dfa62939fbfe82812601c1cb5fc89fdf7356eee519d7b056a264d"
+checksum = "ec5524d9831b9c47caddf756a4eed85d8b42790f9d66f5cf3fbd2e4fec3dc628"
 dependencies = [
  "bincode",
  "cirru_parser",
+ "cjk",
  "hex",
- "lazy_static",
 ]
 
 [[package]]
 name = "cirru_parser"
-version = "0.1.29"
+version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c96247e15778d471f8c94b321fa11220dfb987546fcf8fb73b1a5c2b3a018a78"
+checksum = "320a8dd7792dfd18c39e2b6d06e894028cf2ce0dfb2fcd4964fb730dc37ea150"
 dependencies = [
  "bincode",
+]
+
+[[package]]
+name = "cjk"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c5581b1ff873217332789ccc8956c1c68bcf9d693e7e5c6bcc677897fda5257"
+dependencies = [
+ "hex",
+ "lazy_static",
+ "unicode-blocks",
+ "widestring",
 ]
 
 [[package]]
@@ -736,6 +747,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a01404663e3db436ed2746d9fefef640d868edae3cceb81c3b8d5732fda678f"
 
 [[package]]
+name = "unicode-blocks"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b12e05d9e06373163a9bb6bb8c263c261b396643a99445fe6b9811fd376581b"
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -845,6 +862,12 @@ name = "wasm-bindgen-shared"
 version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0237232789cf037d5480773fe568aac745bfe2afbc11a863e97901780a6b47cc"
+
+[[package]]
+name = "widestring"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c168940144dd21fd8046987c16a46a33d5fc84eec29ef9dcddc2ac9e31526b7c"
 
 [[package]]
 name = "winapi"

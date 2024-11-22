@@ -1,13 +1,10 @@
 use cirru_edn::{Edn, EdnTupleView};
-use lazy_static::lazy_static;
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use std::thread::spawn;
 
-lazy_static! {
-  static ref CLIENTS: RwLock<HashMap<u64, Responder>> = RwLock::new(HashMap::new());
-}
+static CLIENTS: LazyLock<RwLock<HashMap<u64, Responder>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
 
 #[no_mangle]
 pub fn abi_version() -> String {
@@ -100,7 +97,7 @@ pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
         let clients = CLIENTS.read().unwrap();
         let responder = clients.get(&(*id as u64)).unwrap();
         // echo the message back:
-        responder.send(Message::Text(s.to_string().to_owned()));
+        responder.send(Message::Text(s.to_string()));
         Ok(Edn::Nil)
       }
       (a, b) => Err(format!("wss-send expected id and message, got {} {}", a, b)),
