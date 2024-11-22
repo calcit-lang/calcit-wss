@@ -6,12 +6,17 @@ use std::thread::spawn;
 
 static CLIENTS: LazyLock<RwLock<HashMap<u64, Responder>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn abi_version() -> String {
   String::from("0.0.9")
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
+pub fn edn_version() -> String {
+  cirru_edn::version().to_string()
+}
+
+#[unsafe(no_mangle)]
 pub fn wss_serve(
   args: Vec<Edn>,
   handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
@@ -42,6 +47,7 @@ pub fn wss_serve(
             clients.insert(client_id, responder);
           }
           if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+            enum_tag: None,
             tag: Arc::new(Edn::tag("connect")),
             extra: vec![Edn::Number(client_id as f64)],
           })]) {
@@ -55,6 +61,7 @@ pub fn wss_serve(
             clients.remove(&client_id);
           }
           if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+            enum_tag: None,
             tag: Arc::new(Edn::tag("disconnect")),
             extra: vec![Edn::Number(client_id as f64)],
           })]) {
@@ -64,6 +71,7 @@ pub fn wss_serve(
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {
             if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+              enum_tag: None,
               tag: Arc::new(Edn::tag("message")),
               extra: vec![Edn::Number(client_id as f64), Edn::Str(s.into())],
             })]) {
@@ -72,6 +80,7 @@ pub fn wss_serve(
           }
           Message::Binary(buf) => {
             if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
+              enum_tag: None,
               tag: Arc::new(Edn::tag("blob")),
               extra: vec![Edn::Number(client_id as f64), Edn::Buffer(buf)],
             })]) {
@@ -88,7 +97,7 @@ pub fn wss_serve(
   Ok(Edn::Nil)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
   if args.len() == 2 {
     match (&args[0], &args[1]) {
@@ -107,7 +116,7 @@ pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
   }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn wss_each(
   _args: Vec<Edn>,
   handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
