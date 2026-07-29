@@ -37,7 +37,7 @@ checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
 name = "calcit_wss"
-version = "0.2.8"
+version = "0.2.10"
 dependencies = [
  "cirru_edn",
  "simple-websockets",
@@ -51,9 +51,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "cirru_edn"
-version = "0.7.4"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b47f4173f6758afa15d0ad76bb9013a17b8a7da89a05e2b2a60cbc6b0c071ee9"
+checksum = "d054d1542ed06c390236ac86d7f318c0149f531978386cb6de74df47eda32f21"
 dependencies = [
  "cirru_parser",
  "cjk",
@@ -63,9 +63,9 @@ dependencies = [
 
 [[package]]
 name = "cirru_parser"
-version = "0.2.4"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cd74f684ca880e0f809554c676d1cede0bc688a0b184b62adef58f5e52b22ed"
+checksum = "91044eb215dc0a2a75af6d3955f0074a4e7024ed4608a3be812024a950bb4e73"
 dependencies = [
  "serde",
 ]
