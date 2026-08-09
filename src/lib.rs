@@ -1,4 +1,4 @@
-use cirru_edn::{Edn, EdnTupleView};
+use cirru_edn::Edn;
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, RwLock};
@@ -46,11 +46,7 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.insert(client_id, responder);
           }
-          if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
-            enum_tag: None,
-            tag: Arc::new(Edn::tag("connect")),
-            extra: vec![Edn::Number(client_id as f64)],
-          })]) {
+          if let Err(e) = handler(vec![Edn::enum_value("connect", vec![Edn::Number(client_id as f64)])]) {
             println!("Failed to handle connect: {}", e)
           }
         }
@@ -60,30 +56,21 @@ pub fn wss_serve(
             let mut clients = CLIENTS.write().unwrap();
             clients.remove(&client_id);
           }
-          if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
-            enum_tag: None,
-            tag: Arc::new(Edn::tag("disconnect")),
-            extra: vec![Edn::Number(client_id as f64)],
-          })]) {
+          if let Err(e) = handler(vec![Edn::enum_value("disconnect", vec![Edn::Number(client_id as f64)])]) {
             println!("Failed to handle disconnect: {}", e)
           }
         }
         Event::Message(client_id, message) => match message {
           Message::Text(s) => {
-            if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
-              enum_tag: None,
-              tag: Arc::new(Edn::tag("message")),
-              extra: vec![Edn::Number(client_id as f64), Edn::Str(s.into())],
-            })]) {
+            if let Err(e) = handler(vec![Edn::enum_value(
+              "message",
+              vec![Edn::Number(client_id as f64), Edn::Str(s.into())],
+            )]) {
               println!("Failed to handle text message: {}", e)
             }
           }
           Message::Binary(buf) => {
-            if let Err(e) = handler(vec![Edn::Tuple(EdnTupleView {
-              enum_tag: None,
-              tag: Arc::new(Edn::tag("blob")),
-              extra: vec![Edn::Number(client_id as f64), Edn::Buffer(buf)],
-            })]) {
+            if let Err(e) = handler(vec![Edn::enum_value("blob", vec![Edn::Number(client_id as f64), Edn::Buffer(buf)])]) {
               println!("Failed to handle binary message: {}", e)
             }
           }
