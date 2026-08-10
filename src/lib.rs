@@ -1,12 +1,13 @@
 use cirru_edn::Edn;
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, LazyLock, RwLock};
 use std::thread::spawn;
 
 static CLIENTS: LazyLock<RwLock<HashMap<u64, Responder>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
 
-type Callback = dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static;
+pub type Callback = dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static;
 
 /// Invoke a Calcit callback for each client without propagating callback errors
 /// through the Rust dylib boundary.
@@ -17,9 +18,16 @@ type Callback = dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static;
 /// alive instead.
 fn notify_clients(ids: impl IntoIterator<Item = u64>, handler: &Callback) {
   for id in ids {
-    if let Err(e) = handler(vec![Edn::Number(id as f64)]) {
-      eprintln!("wss_each callback failed for client {id}: {e}");
-      break;
+    match catch_unwind(AssertUnwindSafe(|| handler(vec![Edn::Number(id as f64)]))) {
+      Ok(Ok(_)) => {}
+      Ok(Err(e)) => {
+        eprintln!("wss_each callback failed for client {id}: {e}");
+        break;
+      }
+      Err(_) => {
+        eprintln!("wss_each callback panicked for client {id}");
+        break;
+      }
     }
   }
 }
@@ -156,6 +164,20 @@ mod tests {
       } else {
         Ok(Edn::Nil)
       }
+    });
+
+    notify_clients([7, 8], handler.as_ref());
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+  }
+
+  #[test]
+  fn callback_panic_stops_this_batch_without_crossing_the_ffi_boundary() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_for_callback = calls.clone();
+    let handler: Arc<Callback> = Arc::new(move |_| {
+      calls_for_callback.fetch_add(1, Ordering::SeqCst);
+      panic!("expected callback panic");
     });
 
     notify_clients([7, 8], handler.as_ref());
