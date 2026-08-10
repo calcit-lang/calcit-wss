@@ -6,6 +6,24 @@ use std::thread::spawn;
 
 static CLIENTS: LazyLock<RwLock<HashMap<u64, Responder>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
 
+type Callback = dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static;
+
+/// Invoke a Calcit callback for each client without propagating callback errors
+/// through the Rust dylib boundary.
+///
+/// The host runner has already reported a callback failure with its Calcit stack.
+/// Returning that `Err` through the dynamic-library callback ABI can corrupt the
+/// EDN return value during destruction, so stop this batch and keep the server
+/// alive instead.
+fn notify_clients(ids: impl IntoIterator<Item = u64>, handler: &Callback) {
+  for id in ids {
+    if let Err(e) = handler(vec![Edn::Number(id as f64)]) {
+      eprintln!("wss_each callback failed for client {id}: {e}");
+      break;
+    }
+  }
+}
+
 #[unsafe(no_mangle)]
 pub fn abi_version() -> String {
   String::from("0.0.9")
@@ -17,11 +35,7 @@ pub fn edn_version() -> String {
 }
 
 #[unsafe(no_mangle)]
-pub fn wss_serve(
-  args: Vec<Edn>,
-  handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
-  _finish: Box<dyn FnOnce()>,
-) -> Result<Edn, String> {
+pub fn wss_serve(args: Vec<Edn>, handler: Arc<Callback>, _finish: Box<dyn FnOnce()>) -> Result<Edn, String> {
   let port = match args.first() {
     Some(Edn::Map(m)) => match m.tag_get("port") {
       Some(Edn::Number(n)) => n.floor().round() as u16,
@@ -104,11 +118,7 @@ pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
 }
 
 #[unsafe(no_mangle)]
-pub fn wss_each(
-  _args: Vec<Edn>,
-  handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
-  finish: Box<dyn FnOnce()>,
-) -> Result<Edn, String> {
+pub fn wss_each(_args: Vec<Edn>, handler: Arc<Callback>, finish: Box<dyn FnOnce()>) -> Result<Edn, String> {
   let mut ids: Vec<u64> = vec![];
   {
     let clients = CLIENTS.write().unwrap();
@@ -119,10 +129,31 @@ pub fn wss_each(
     }
   }
 
-  for id in ids {
-    handler(vec![Edn::Number(id as f64)])?;
-  }
-
+  notify_clients(ids, handler.as_ref());
   finish();
   Ok(Edn::Nil)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::sync::atomic::{AtomicUsize, Ordering};
+
+  #[test]
+  fn callback_error_stops_this_batch_without_crossing_the_ffi_boundary() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_for_callback = calls.clone();
+    let handler: Arc<Callback> = Arc::new(move |_| {
+      let call = calls_for_callback.fetch_add(1, Ordering::SeqCst);
+      if call == 0 {
+        Err("expected callback failure".to_owned())
+      } else {
+        Ok(Edn::Nil)
+      }
+    });
+
+    notify_clients([7, 8], handler.as_ref());
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+  }
 }
