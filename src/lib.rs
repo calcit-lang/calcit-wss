@@ -1,10 +1,36 @@
 use cirru_edn::Edn;
 use simple_websockets::{Event, Message, Responder};
 use std::collections::HashMap;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, LazyLock, RwLock};
 use std::thread::spawn;
 
 static CLIENTS: LazyLock<RwLock<HashMap<u64, Responder>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
+
+pub type Callback = dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static;
+
+/// Invoke a Calcit callback for each client without propagating callback errors
+/// through the Rust dylib boundary.
+///
+/// The host runner has already reported a callback failure with its Calcit stack.
+/// Returning that `Err` through the dynamic-library callback ABI can corrupt the
+/// EDN return value during destruction, so stop this batch and keep the server
+/// alive instead.
+fn notify_clients(ids: impl IntoIterator<Item = u64>, handler: &Callback) {
+  for id in ids {
+    match catch_unwind(AssertUnwindSafe(|| handler(vec![Edn::Number(id as f64)]))) {
+      Ok(Ok(_)) => {}
+      Ok(Err(e)) => {
+        eprintln!("wss_each callback failed for client {id}: {e}");
+        break;
+      }
+      Err(_) => {
+        eprintln!("wss_each callback panicked for client {id}");
+        break;
+      }
+    }
+  }
+}
 
 #[unsafe(no_mangle)]
 pub fn abi_version() -> String {
@@ -17,11 +43,7 @@ pub fn edn_version() -> String {
 }
 
 #[unsafe(no_mangle)]
-pub fn wss_serve(
-  args: Vec<Edn>,
-  handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
-  _finish: Box<dyn FnOnce()>,
-) -> Result<Edn, String> {
+pub fn wss_serve(args: Vec<Edn>, handler: Arc<Callback>, _finish: Box<dyn FnOnce()>) -> Result<Edn, String> {
   let port = match args.first() {
     Some(Edn::Map(m)) => match m.tag_get("port") {
       Some(Edn::Number(n)) => n.floor().round() as u16,
@@ -33,17 +55,18 @@ pub fn wss_serve(
     None => 9001,
   };
 
-  // listen for WebSockets on port, defaults to 9001:
-  let event_hub = simple_websockets::launch(port).expect("failed to listen on port 9001");
+  // Listen for WebSockets on port, defaults to 9001. Do not panic here: a
+  // panic escaping a dynamically loaded library aborts the host runner.
+  let event_hub = simple_websockets::launch(port).map_err(|error| format!("failed to listen on port {port}: {error:?}"))?;
   println!("WebSocket server started at port {}", port);
 
-  let task = spawn(move || {
+  let task = spawn(move || -> Result<(), String> {
     loop {
       match event_hub.poll_event() {
         Event::Connect(client_id, responder) => {
           {
             // add their Responder to our `clients` map:
-            let mut clients = CLIENTS.write().unwrap();
+            let mut clients = CLIENTS.write().map_err(|_| "wss clients lock poisoned".to_owned())?;
             clients.insert(client_id, responder);
           }
           if let Err(e) = handler(vec![Edn::enum_value("connect", vec![Edn::Number(client_id as f64)])]) {
@@ -53,7 +76,7 @@ pub fn wss_serve(
         Event::Disconnect(client_id) => {
           {
             // remove the disconnected client from the clients map:
-            let mut clients = CLIENTS.write().unwrap();
+            let mut clients = CLIENTS.write().map_err(|_| "wss clients lock poisoned".to_owned())?;
             clients.remove(&client_id);
           }
           if let Err(e) = handler(vec![Edn::enum_value("disconnect", vec![Edn::Number(client_id as f64)])]) {
@@ -79,7 +102,7 @@ pub fn wss_serve(
     }
   });
 
-  task.join().expect("running WebSocket server");
+  task.join().map_err(|_| "WebSocket server thread panicked".to_owned())??;
 
   Ok(Edn::Nil)
 }
@@ -90,10 +113,14 @@ pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
     match (&args[0], &args[1]) {
       (Edn::Number(id), Edn::Str(s)) => {
         // retrieve this client's `Responder`:
-        let clients = CLIENTS.read().unwrap();
-        let responder = clients.get(&(*id as u64)).unwrap();
+        let clients = CLIENTS.read().map_err(|_| "wss clients lock poisoned".to_owned())?;
+        let responder = clients
+          .get(&(*id as u64))
+          .ok_or_else(|| format!("wss-send cannot find connected client {id}"))?;
         // echo the message back:
-        responder.send(Message::Text(s.to_string()));
+        if !responder.send(Message::Text(s.to_string())) {
+          return Err(format!("wss-send failed for disconnected client {id}"));
+        }
         Ok(Edn::Nil)
       }
       (a, b) => Err(format!("wss-send expected id and message, got {} {}", a, b)),
@@ -104,14 +131,10 @@ pub fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
 }
 
 #[unsafe(no_mangle)]
-pub fn wss_each(
-  _args: Vec<Edn>,
-  handler: Arc<dyn Fn(Vec<Edn>) -> Result<Edn, String> + Send + Sync + 'static>,
-  finish: Box<dyn FnOnce()>,
-) -> Result<Edn, String> {
+pub fn wss_each(_args: Vec<Edn>, handler: Arc<Callback>, finish: Box<dyn FnOnce()>) -> Result<Edn, String> {
   let mut ids: Vec<u64> = vec![];
   {
-    let clients = CLIENTS.write().unwrap();
+    let clients = CLIENTS.write().map_err(|_| "wss clients lock poisoned".to_owned())?;
 
     // TODO remove clone
     for client_id in clients.clone().into_keys().collect::<Vec<u64>>() {
@@ -119,10 +142,58 @@ pub fn wss_each(
     }
   }
 
-  for id in ids {
-    handler(vec![Edn::Number(id as f64)])?;
-  }
-
+  notify_clients(ids, handler.as_ref());
   finish();
   Ok(Edn::Nil)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::net::TcpListener;
+  use std::sync::atomic::{AtomicUsize, Ordering};
+
+  #[test]
+  fn callback_error_stops_this_batch_without_crossing_the_ffi_boundary() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_for_callback = calls.clone();
+    let handler: Arc<Callback> = Arc::new(move |_| {
+      let call = calls_for_callback.fetch_add(1, Ordering::SeqCst);
+      if call == 0 {
+        Err("expected callback failure".to_owned())
+      } else {
+        Ok(Edn::Nil)
+      }
+    });
+
+    notify_clients([7, 8], handler.as_ref());
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+  }
+
+  #[test]
+  fn callback_panic_stops_this_batch_without_crossing_the_ffi_boundary() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_for_callback = calls.clone();
+    let handler: Arc<Callback> = Arc::new(move |_| {
+      calls_for_callback.fetch_add(1, Ordering::SeqCst);
+      panic!("expected callback panic");
+    });
+
+    notify_clients([7, 8], handler.as_ref());
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+  }
+
+  #[test]
+  fn listener_start_failure_is_returned_without_panicking() {
+    let listener = TcpListener::bind("0.0.0.0:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let options = Edn::map_from_iter([(Edn::tag("port"), Edn::Number(port as f64))]);
+    let handler: Arc<Callback> = Arc::new(|_| Ok(Edn::Nil));
+
+    let error = wss_serve(vec![options], handler, Box::new(|| {})).expect_err("occupied port must fail");
+
+    assert!(error.contains("failed to listen on port"));
+  }
 }
