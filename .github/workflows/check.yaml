@@ -25,4 +25,13 @@ jobs:
 
       - run: mkdir dylibs/ && ls target/release/ && cp -v target/release/*.* dylibs/
 
-      - run: cr
+      - name: Validate canonical Calcit snapshot
+        run: |
+          caps --ci
+          cr calcit.cirru edit format
+          git diff --exit-code -- calcit.cirru
+          cr calcit.cirru --check-only
+          cr calcit.cirru analyze check-types --summary-only --format json
+          cr calcit.cirru analyze weak-types --only schema-dynamic,code-dynamic --intent unresolved --summary-only --format json
+
+      - run: cr calcit.cirru
