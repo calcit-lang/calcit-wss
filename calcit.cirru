@@ -15,19 +15,27 @@
             defn wss-each! (cb)
               &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_each cb
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ [] 'Fn
         |wss-send! $ %{} 'CodeEntry (:doc "|Send a message to a WebSocket client. Args: id (string/number), message (any). Example: (wss-send! 123 \"Hello!\")")
           :code $ quote
             defn wss-send! (client message)
               &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ [] 'Dynamic 'Dynamic
+              :features $ #{} :js-ffi
         |wss-serve! $ %{} 'CodeEntry (:doc "|Start a WebSocket server. Args: options (map), callback function (fn (income-data)). Example: (wss-serve! {:port 9001} (fn (income) (println income)))")
           :code $ quote
             defn wss-serve! (options cb)
               &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ [] (:: 'Map 'Tag 'Dynamic) 'Fn
+              :features $ #{} :js-ffi
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
           ns wss.core $ :require
@@ -45,22 +53,30 @@
                     wss-send! id $ str "|hello from: " income
               println "|demo started"
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ []
         |main! $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn main! () $ run-tests
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ []
         |reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn reload! () $ println "|did nothing on reload"
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ []
         |run-tests $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn run-tests () (println "|%%%% test for lib") (println calcit-filename calcit-dirname)
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ []
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
           ns wss.test $ :require
@@ -72,19 +88,25 @@
           :code $ quote
             defmacro get-dylib-ext () $ case-default (&get-os) |.so (:macos |.dylib) (:windows |.dll)
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Macro
+            {} (:return 'String)
+              :args $ []
         |get-dylib-path $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn get-dylib-path (p)
               str (or-current-path calcit-dirname) p $ get-dylib-ext
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'String)
+              :args $ [] 'String
         |or-current-path $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn or-current-path (p)
               if (blank? p) |. p
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'String)
+              :args $ [] 'String
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
           ns wss.util $ :require
