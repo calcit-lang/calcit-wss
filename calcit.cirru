@@ -92,7 +92,7 @@
           :examples $ []
           :schema $ :: 'Macro
             {} (:return 'String)
-              :args $ [] 'String
+              :args $ []
         |get-dylib-path $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn get-dylib-path (p)
