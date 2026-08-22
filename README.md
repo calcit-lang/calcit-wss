@@ -23,7 +23,7 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 Run buildin demo with:
 
 ```bash
-cr -1 --init-fn wss.test/demo!
+calcit calcit.cirru --init-fn wss.test/demo!
 ```
 
 ### Workflow
