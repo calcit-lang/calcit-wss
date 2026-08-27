@@ -41,6 +41,7 @@ version = "0.2.14"
 dependencies = [
  "cirru_edn",
  "simple-websockets",
+ "tungstenite",
 ]
 
 [[package]]

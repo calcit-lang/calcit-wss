@@ -16,6 +16,16 @@ wss.core/wss-serve!
       wss.core/wss-send! id $ str "\"hello from: " income
 ```
 
+`wss-serve!` returns an opaque native task capability. Stop the listener and
+all connection workers with `&ffi-task-cancel`; terminal completion is emitted
+only after native resources are released. `wss-send!` accepts a non-negative
+safe-integer client id and a string message. `wss-each!` iterates over a stable
+snapshot of currently connected client ids.
+
+Maintainers can run `bash scripts/check-wss-ffi.sh` after copying the release
+dylib into `dylibs/`; it requires connect, inbound message, buffer-v1 send,
+task cancellation, and clean host exit to all succeed.
+
 Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file with `./build.sh`.
 
 ### Develop

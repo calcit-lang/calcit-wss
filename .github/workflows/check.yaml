@@ -12,9 +12,9 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: calcit-lang/setup-calcit@3b5843cb725963bb4ee158cfe49dad877134963e
+      - uses: calcit-lang/setup-calcit@v1.3.0
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -23,6 +23,21 @@ jobs:
 
       - run: cargo build --release
 
-      - run: mkdir dylibs/ && ls target/release/ && cp -v target/release/*.* dylibs/
+      - run: cargo test -- --test-threads=1
+
+      - run: cargo clippy --all-targets -- -D warnings
+
+      - run: mkdir -p dylibs/ && ls target/release/ && cp -v target/release/*.* dylibs/
+
+      - run: caps --strict --ci
+
+      - run: calcit calcit.cirru edit format && git diff --exit-code -- calcit.cirru
+
+      - run: calcit calcit.cirru --check-only
+
+      - run: calcit calcit.cirru analyze quality --format json
 
       - run: calcit calcit.cirru
+
+      - name: Verify WebSocket connect, send, and cancellation
+        run: bash scripts/check-wss-ffi.sh
