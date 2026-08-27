@@ -27,7 +27,17 @@ jobs:
 
       - run: cargo clippy --all-targets -- -D warnings
 
-      - run: mkdir -p dylibs/ && ls target/release/ && cp -v target/release/*.* dylibs/
+      - name: Verify C-safe exports only
+        run: |
+          exports="$(nm -D --defined-only target/release/libcalcit_wss.so)"
+          grep -q ' calcit_ffi_async_version$' <<<"$exports"
+          grep -q ' calcit_ffi_buffer_version$' <<<"$exports"
+          grep -q ' wss_serve_calcit_ffi_async_v1$' <<<"$exports"
+          grep -q ' wss_each_calcit_ffi_async_v1$' <<<"$exports"
+          grep -q ' wss_send_calcit_ffi_v1$' <<<"$exports"
+          ! grep -Eq ' (abi_version|edn_version|wss_serve|wss_each|wss_send)$' <<<"$exports"
+
+      - run: mkdir -p dylibs/ && cp -v target/release/libcalcit_wss.so dylibs/
 
       - run: caps --strict --ci
 
