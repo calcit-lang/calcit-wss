@@ -12,32 +12,41 @@
   :files $ {}
     |wss.core $ %{} 'FileEntry
       :defs $ {}
-        |wss-each! $ %{} 'CodeEntry (:doc "|Iterate over connected clients. Args: callback (fn (client-id)). Example: (wss-each! (fn (id) (wss-send! id \"Hello!\")))")
+        |WssEvent $ %{} 'CodeEntry (:doc |)
+          :code $ quote
+            defenum WssEvent (:connect 'Number) (:disconnect 'Number) (:message 'Number 'String) (:blob 'Number 'Buffer)
+          :examples $ []
+          :schema $ :: 'EnumDef
+        |wss-each! $ %{} 'CodeEntry (:doc "|Iterate over a stable snapshot of connected clients. Args: callback (fn (client-id) -> Unit). Returns Unit after all queued callbacks complete.")
           :code $ quote
             defn wss-each! (cb)
               &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_each cb
           :examples $ []
           :schema $ :: 'Fn
             {} (:return 'Unit)
-              :args $ [] 'Fn
-        |wss-send! $ %{} 'CodeEntry (:doc "|Send a message to a WebSocket client. Args: id (string/number), message (any). Example: (wss-send! 123 \"Hello!\")")
+              :args $ []
+                :: 'Fn $ {} (:return 'Unit)
+                  :args $ [] 'Number
+        |wss-send! $ %{} 'CodeEntry (:doc "|Send a text message to a WebSocket client. Args: non-negative safe-integer client id and string message. Returns Unit.")
           :code $ quote
             defn wss-send! (client message)
-              &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
+              do
+                &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
+                , &unit
           :examples $ []
           :schema $ :: 'Fn
             {} (:return 'Unit)
-              :args $ [] 'Dynamic 'Dynamic
-              :features $ #{} :js-ffi
-        |wss-serve! $ %{} 'CodeEntry (:doc "|Start a WebSocket server. Args: options (map), callback function (fn (income-data)). Example: (wss-serve! {:port 9001} (fn (income) (println income)))")
+              :args $ [] 'Number 'String
+        |wss-serve! $ %{} 'CodeEntry (:doc "|Start a cancellable native WebSocket server. Args: options map and callback receiving connect/disconnect/message/blob events. Returns an opaque task capability accepted by &ffi-task-cancel.")
           :code $ quote
             defn wss-serve! (options cb)
               &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
           :examples $ []
           :schema $ :: 'Fn
-            {} (:return 'Unit)
-              :args $ [] (:: 'Map 'Tag 'Dynamic) 'Fn
-              :features $ #{} :js-ffi
+            {} (:return 'AnyRef)
+              :args $ [] (:: 'Map 'Tag 'Number)
+                :: 'Fn $ {} (:return 'Unit)
+                  :args $ [] 'wss.core/WssEvent
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
           ns wss.core $ :require
@@ -91,8 +100,10 @@
             defmacro get-dylib-ext () $ case-default (&get-os) |.so (:macos |.dylib) (:windows |.dll)
           :examples $ []
           :schema $ :: 'Macro
-            {} (:return 'String)
-              :args $ []
+            {}
+              :capabilities $ #{} :platform-read
+              :expansion $ :: 'Expr 'String
+              :required $ []
         |get-dylib-path $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn get-dylib-path (p)
