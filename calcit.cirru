@@ -17,6 +17,11 @@
             defenum WssEvent (:connect 'Number) (:disconnect 'Number) (:message 'Number 'String) (:blob 'Number 'Buffer)
           :examples $ []
           :schema $ :: 'EnumDef
+        |WssSendOutcome $ %{} 'CodeEntry (:doc "|Outbound send result: accepted, backpressured, too-large, or closed.")
+          :code $ quote
+            defenum WssSendOutcome (:accepted) (:backpressured) (:too-large) (:closed)
+          :examples $ []
+          :schema $ :: 'EnumDef
         |wss-each! $ %{} 'CodeEntry (:doc "|Iterate over a stable snapshot of connected clients. Args: callback (fn (client-id) -> Unit). Returns Unit after all queued callbacks complete.")
           :code $ quote
             defn wss-each! (cb)
@@ -27,15 +32,20 @@
               :args $ []
                 :: 'Fn $ {} (:return 'Unit)
                   :args $ [] 'Number
-        |wss-send! $ %{} 'CodeEntry (:doc "|Send a text message to a WebSocket client. Args: non-negative safe-integer client id and string message. Returns Unit.")
+        |wss-send! $ %{} 'CodeEntry (:doc "|Try to enqueue a text message for one WebSocket client. Returns WssSendOutcome; backpressured and too-large are normal flow-control results.")
           :code $ quote
             defn wss-send! (client message)
-              do
-                &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
-                , &unit
+              let
+                  outcome $ &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
+                tag-match outcome
+                  (:accepted) (%:: WssSendOutcome :accepted)
+                  (:backpressured) (%:: WssSendOutcome :backpressured)
+                  (:too-large) (%:: WssSendOutcome :too-large)
+                  (:closed) (%:: WssSendOutcome :closed)
+                  _ $ raise (str |unexpected-wss-send-outcome: outcome)
           :examples $ []
           :schema $ :: 'Fn
-            {} (:return 'Unit)
+            {} (:return 'wss.core/WssSendOutcome)
               :args $ [] 'Number 'String
         |wss-serve! $ %{} 'CodeEntry (:doc "|Start a cancellable native WebSocket server. Args: options map and callback receiving connect/disconnect/message/blob events. Returns FfiTask; cancel it with .cancel or .cancel-with.")
           :code $ quote
