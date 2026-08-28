@@ -28,7 +28,7 @@ let
             wss-each! $ fn (connected-id)
               do
                 wss-send! connected-id |from-calcit
-                &ffi-task-cancel (deref task-ref) :smoke-complete
+                .cancel-with (deref task-ref) :smoke-complete
           _ &unit
   reset! task-ref task
   , task' >"$smoke_log" 2>&1 &

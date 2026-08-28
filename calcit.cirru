@@ -37,13 +37,13 @@
           :schema $ :: 'Fn
             {} (:return 'Unit)
               :args $ [] 'Number 'String
-        |wss-serve! $ %{} 'CodeEntry (:doc "|Start a cancellable native WebSocket server. Args: options map and callback receiving connect/disconnect/message/blob events. Returns an opaque task capability accepted by &ffi-task-cancel.")
+        |wss-serve! $ %{} 'CodeEntry (:doc "|Start a cancellable native WebSocket server. Args: options map and callback receiving connect/disconnect/message/blob events. Returns FfiTask; cancel it with .cancel or .cancel-with.")
           :code $ quote
             defn wss-serve! (options cb)
-              &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
+              ffi:task $ &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
           :examples $ []
           :schema $ :: 'Fn
-            {} (:return 'AnyRef)
+            {} (:return 'FfiTask)
               :args $ [] (:: 'Map 'Tag 'Number)
                 :: 'Fn $ {} (:return 'Unit)
                   :args $ [] 'wss.core/WssEvent
