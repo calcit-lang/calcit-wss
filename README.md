@@ -38,6 +38,16 @@ C-safe descriptors, buffer ownership, Cirru EDN adapters, and backpressure
 transport. The WebSocket client registry, connection workers, and
 cancellation/terminal ordering remain owned by this repository.
 
+普通 WebSocket 业务事件使用可取消背压：server 取消后最长 10ms 停止等待 host
+队列。队列持续饱和时默认最多等待 5 秒。清理 listener、连接 worker 与 client
+registry 后的 terminal 事件不应用业务取消 predicate，继续利用 host 预留容量收尾。
+
+Ordinary WebSocket business events use cancellable backpressure: after server
+cancellation they stop waiting on host queue capacity within 10ms, while a
+persistently saturated queue has a default five-second deadline. The terminal
+event after listener, connection-worker, and client-registry cleanup does not
+use the business cancellation predicate and relies on host-reserved capacity.
+
 Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file with `./build.sh`.
 
 ### Develop
