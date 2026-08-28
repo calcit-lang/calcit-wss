@@ -24,9 +24,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 
 [[package]]
+name = "calcit_native_ffi"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a985b8b73c1025a00f7e03bfc673c8e44e5671be78af4783b856b8f85464cc66"
+dependencies = [
+ "cirru_edn",
+]
+
+[[package]]
 name = "calcit_wss"
 version = "0.2.16"
 dependencies = [
+ "calcit_native_ffi",
  "cirru_edn",
  "tungstenite",
 ]

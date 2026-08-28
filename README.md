@@ -26,6 +26,18 @@ Maintainers can run `bash scripts/check-wss-ffi.sh` after copying the release
 dylib into `dylibs/`; it requires connect, inbound message, buffer-v1 send,
 task cancellation, and clean host exit to all succeed.
 
+### 共享 FFI 基础层 / Shared FFI foundation
+
+本模块使用 [`calcit_native_ffi`](https://github.com/calcit-lang/calcit-native-ffi)
+维护 C-safe descriptors、buffer ownership、Cirru EDN adapter 与 backpressure
+transport。WebSocket client registry、连接 worker 和取消/terminal 顺序仍由本仓库维护。
+
+This module uses
+[`calcit_native_ffi`](https://github.com/calcit-lang/calcit-native-ffi) for
+C-safe descriptors, buffer ownership, Cirru EDN adapters, and backpressure
+transport. The WebSocket client registry, connection workers, and
+cancellation/terminal ordering remain owned by this repository.
+
 Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file with `./build.sh`.
 
 ### Develop

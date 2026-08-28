@@ -8,6 +8,8 @@ calcit docs agents --full
 修改。native 动态边界只使用版本化 C-safe buffer/async ABI；Calcit 0.13.57
 已删除 legacy Rust ABI fallback。长生命周期 WebSocket server 必须提供 cancel hook，
 且只有在 listener、连接 worker 和 client registry 都清理后才发送 terminal。
+公共 descriptors、buffer ownership、Cirru EDN adapter 与 transport helper 统一来自
+`calcit_native_ffi`；本仓库只维护 WebSocket 生命周期与薄兼容层。
 
 提交前运行 `cargo fmt --check`、`cargo test`、
 `cargo clippy --all-targets -- -D warnings`、deps.cirru 所声明 Calcit 版本的 check/quality

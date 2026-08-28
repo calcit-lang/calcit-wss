@@ -1,5 +1,8 @@
 mod ffi;
 
+calcit_native_ffi::export_buffer_abi_v1!();
+calcit_native_ffi::export_async_abi_v1!();
+
 use cirru_edn::Edn;
 use ffi::*;
 use std::collections::{HashMap, HashSet};
@@ -522,7 +525,7 @@ mod tests {
 
   fn test_task() -> CalcitFfiAsyncTaskV1 {
     CalcitFfiAsyncTaskV1 {
-      protocol_version: ASYNC_PROTOCOL_VERSION,
+      protocol_version: calcit_native_ffi::ASYNC_PROTOCOL_VERSION,
       struct_size: std::mem::size_of::<CalcitFfiAsyncTaskV1>() as u32,
       handle: 17,
       kind: ASYNC_TASK_SERVER,
@@ -532,7 +535,7 @@ mod tests {
 
   fn test_host() -> CalcitFfiAsyncHostV1 {
     CalcitFfiAsyncHostV1 {
-      protocol_version: ASYNC_PROTOCOL_VERSION,
+      protocol_version: calcit_native_ffi::ASYNC_PROTOCOL_VERSION,
       struct_size: std::mem::size_of::<CalcitFfiAsyncHostV1>() as u32,
       context: 17,
       enqueue: Some(record_enqueue),
@@ -621,7 +624,7 @@ mod tests {
       RECORDED_EVENTS.lock().is_ok_and(|events| events.len() >= 2)
     });
 
-    let request = encode_edn(&Edn::List(cirru_edn::EdnListView(vec![
+    let request = calcit_native_ffi::encode_edn(&Edn::List(cirru_edn::EdnListView(vec![
       Edn::Number(client_id as f64),
       Edn::str("from-calcit"),
     ])))
