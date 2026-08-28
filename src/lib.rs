@@ -77,11 +77,18 @@ impl ClientHandle {
     if self.close_requested.load(Ordering::Acquire) {
       return SendOutcome::Closed;
     }
-    let reserved = self.queued_bytes.fetch_update(Ordering::AcqRel, Ordering::Acquire, |queued| {
-      queued.checked_add(bytes).filter(|next| *next <= OUTBOUND_QUEUE_BYTES)
-    });
-    if reserved.is_err() {
-      return SendOutcome::Backpressured;
+    let mut queued = self.queued_bytes.load(Ordering::Acquire);
+    loop {
+      let Some(next) = queued.checked_add(bytes).filter(|next| *next <= OUTBOUND_QUEUE_BYTES) else {
+        return SendOutcome::Backpressured;
+      };
+      match self
+        .queued_bytes
+        .compare_exchange_weak(queued, next, Ordering::AcqRel, Ordering::Acquire)
+      {
+        Ok(_) => break,
+        Err(actual) => queued = actual,
+      }
     }
     match self.outgoing.try_send(QueuedMessage {
       message: SafeMessage::Text(text),
@@ -769,11 +776,11 @@ mod tests {
       Edn::enum_value("accepted", vec![])
     );
     unsafe { calcit_ffi_buffer_free(output) };
-    control.cancelled.store(true, Ordering::Release);
     assert_eq!(
       socket.read_message().expect("receive server message"),
       SafeMessage::Text("from-calcit".to_owned())
     );
+    control.cancelled.store(true, Ordering::Release);
 
     server.join().expect("server worker join").expect("server shutdown");
     assert!(!CLIENTS.read().expect("clients lock").contains_key(&client_id));
