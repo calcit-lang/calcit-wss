@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 pub use calcit_native_ffi::{CalcitFfiAsyncHostV1, CalcitFfiAsyncTaskV1, decode_request, encode_callback_args, encode_failure};
 
 pub const ASYNC_STATUS_OK: i32 = calcit_native_ffi::status::OK;
@@ -25,12 +23,26 @@ pub unsafe fn copy_host_descriptor(value: *const CalcitFfiAsyncHostV1) -> Result
 }
 
 pub fn enqueue_with_backpressure(host: CalcitFfiAsyncHostV1, task: CalcitFfiAsyncTaskV1, kind: u32, payload: &[u8]) -> i32 {
-  calcit_native_ffi::enqueue_with_backpressure(
+  calcit_native_ffi::enqueue_with_backpressure(host, task, kind, 0, payload, calcit_native_ffi::BackpressurePolicy::default())
+}
+
+pub fn enqueue_with_backpressure_until<F>(
+  host: CalcitFfiAsyncHostV1,
+  task: CalcitFfiAsyncTaskV1,
+  kind: u32,
+  payload: &[u8],
+  should_continue: F,
+) -> i32
+where
+  F: FnMut() -> bool,
+{
+  calcit_native_ffi::enqueue_with_backpressure_until(
     host,
     task,
     kind,
     0,
     payload,
-    calcit_native_ffi::BackpressurePolicy::unbounded(Duration::from_millis(1)),
+    calcit_native_ffi::BackpressurePolicy::default(),
+    should_continue,
   )
 }

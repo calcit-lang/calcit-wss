@@ -163,7 +163,9 @@ fn publish_server_event(
   event: Edn,
 ) -> Result<(), String> {
   let payload = encode_callback_args(vec![event])?;
-  let status = enqueue_with_backpressure(host, task, ASYNC_EVENT_EMIT, &payload);
+  let status = enqueue_with_backpressure_until(host, task, ASYNC_EVENT_EMIT, &payload, || {
+    !control.cancelled.load(Ordering::Acquire)
+  });
   if status == ASYNC_STATUS_OK
     || (control.cancelled.load(Ordering::Acquire) && matches!(status, ASYNC_STATUS_HANDLE_CLOSING | ASYNC_STATUS_HANDLE_FINISHED))
   {
@@ -496,6 +498,7 @@ mod tests {
 
   type RecordedEvent = (u32, Vec<u8>);
   static RECORDED_EVENTS: LazyLock<Mutex<Vec<RecordedEvent>>> = LazyLock::new(|| Mutex::new(vec![]));
+  static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
   unsafe extern "C" fn record_enqueue(
     _context: u64,
@@ -557,6 +560,17 @@ mod tests {
   }
 
   #[test]
+  fn cancelled_server_skips_queued_business_events() {
+    let _guard = TEST_LOCK.lock().expect("test lock");
+    RECORDED_EVENTS.lock().expect("recorded events lock").clear();
+    let control = ServerControl {
+      cancelled: AtomicBool::new(true),
+    };
+    assert!(publish_server_event(test_host(), test_task(), &control, Edn::tag("ignored")).is_ok());
+    assert!(RECORDED_EVENTS.lock().expect("recorded events lock").is_empty());
+  }
+
+  #[test]
   fn ffi_layouts_versions_and_short_descriptor_rejection_are_stable() {
     assert_eq!(calcit_ffi_async_version(), 1);
     assert_eq!(calcit_ffi_buffer_version(), 1);
@@ -584,6 +598,7 @@ mod tests {
 
   #[test]
   fn safe_server_connects_exchanges_messages_and_cancels_cleanly() {
+    let _guard = TEST_LOCK.lock().expect("test lock");
     RECORDED_EVENTS.lock().expect("recorded events lock").clear();
     CLIENTS.write().expect("clients lock").clear();
     let probe = TcpListener::bind("127.0.0.1:0").expect("reserve test port");
