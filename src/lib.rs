@@ -208,10 +208,6 @@ fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>,
 
   let result = (|| -> Result<(), String> {
     loop {
-      if control.cancelled.load(Ordering::Acquire) || close_requested.load(Ordering::Acquire) {
-        let _ = socket.close(None);
-        return Ok(());
-      }
       loop {
         match commands.try_recv() {
           Ok(queued) => {
@@ -219,6 +215,10 @@ fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>,
             socket
               .write_message(queued.message)
               .map_err(|error| format!("failed to write WebSocket message: {error}"))?;
+            if control.cancelled.load(Ordering::Acquire) || close_requested.load(Ordering::Acquire) {
+              let _ = socket.close(None);
+              return Ok(());
+            }
           }
           Err(TryRecvError::Empty) => break,
           Err(TryRecvError::Disconnected) => {
@@ -226,6 +226,10 @@ fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>,
             return Ok(());
           }
         }
+      }
+      if control.cancelled.load(Ordering::Acquire) || close_requested.load(Ordering::Acquire) {
+        let _ = socket.close(None);
+        return Ok(());
       }
       match socket.read_message() {
         Ok(SafeMessage::Text(text)) => events
@@ -776,11 +780,11 @@ mod tests {
       Edn::enum_value("accepted", vec![])
     );
     unsafe { calcit_ffi_buffer_free(output) };
+    control.cancelled.store(true, Ordering::Release);
     assert_eq!(
       socket.read_message().expect("receive server message"),
       SafeMessage::Text("from-calcit".to_owned())
     );
-    control.cancelled.store(true, Ordering::Release);
 
     server.join().expect("server worker join").expect("server shutdown");
     assert!(!CLIENTS.read().expect("clients lock").contains_key(&client_id));
