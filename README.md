@@ -16,8 +16,8 @@ wss.core/wss-serve!
       wss.core/wss-send! id $ str "\"hello from: " income
 ```
 
-`wss-serve!` returns an opaque native task capability. Stop the listener and
-all connection workers with `&ffi-task-cancel`; terminal completion is emitted
+`wss-serve!` returns a typed `FfiTask`. Stop the listener and all connection
+workers with `.cancel` or `.cancel-with`; terminal completion is emitted
 only after native resources are released. `wss-send!` accepts a non-negative
 safe-integer client id and a string message. `wss-each!` iterates over a stable
 snapshot of currently connected client ids.
