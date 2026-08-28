@@ -19,8 +19,22 @@ wss.core/wss-serve!
 `wss-serve!` returns a typed `FfiTask`. Stop the listener and all connection
 workers with `.cancel` or `.cancel-with`; terminal completion is emitted
 only after native resources are released. `wss-send!` accepts a non-negative
-safe-integer client id and a string message. `wss-each!` iterates over a stable
-snapshot of currently connected client ids.
+safe-integer client id and a string message, then returns `(:accepted)`,
+`(:backpressured)`, `(:too-large)`, or `(:closed)`. These outcomes are normal
+flow control rather than exceptions. `wss-each!` iterates over a stable snapshot
+of currently connected client ids.
+
+每个连接的 outbound 业务队列按消息数和累计字节数双重限制（当前分别为 64 条、
+1 MiB，单消息上限 256 KiB）。队列满时模块不会丢弃或合并 patch，而是返回
+`(:backpressured)`，供上层基于 acknowledged revision 重新计算；取消和 close
+使用独立控制路径，不会被业务队列占满所阻塞。
+
+Each connection has an outbound business queue bounded by both message count and
+total bytes (currently 64 messages and 1 MiB, with a 256 KiB per-message limit).
+The module never drops or merges patches when full; it returns
+`(:backpressured)` so the workflow can recompute from an acknowledged revision.
+Cancellation and close use an independent control path that remains available
+when the business queue is full.
 
 Maintainers can run `bash scripts/check-wss-ffi.sh` after copying the release
 dylib into `dylibs/`; it requires connect, inbound message, buffer-v1 send,

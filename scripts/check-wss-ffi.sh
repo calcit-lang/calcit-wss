@@ -26,13 +26,33 @@ let
         tag-match event
           (:message client-id text)
             wss-each! $ fn (connected-id)
-              do
-                wss-send! connected-id |from-calcit
-                .cancel-with (deref task-ref) :smoke-complete
+              tag-match (wss-send! connected-id |from-calcit)
+                (:accepted) (.cancel-with (deref task-ref) :smoke-complete)
+                _ $ raise |unexpected-send-outcome
           _ &unit
   reset! task-ref task
   , task' >"$smoke_log" 2>&1 &
 server_pid="$!"
+
+server_ready=""
+for _ in {1..100}; do
+  if grep -q 'WebSocket server started at port 19001' "$smoke_log"; then
+    server_ready=1
+    break
+  fi
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    cat "$smoke_log"
+    echo "Calcit WebSocket server exited before listening" >&2
+    exit 1
+  fi
+  sleep 0.05
+done
+
+if [[ -z "$server_ready" ]]; then
+  cat "$smoke_log"
+  echo "Calcit WebSocket server did not start listening in time" >&2
+  exit 1
+fi
 
 cargo run --quiet --example smoke_client -- 19001
 
