@@ -1,8 +1,6 @@
 use std::time::Duration;
 
-pub use calcit_native_ffi::{
-  CalcitFfiAsyncHostV1, CalcitFfiAsyncTaskV1, CalcitFfiBuffer, decode_request, encode_callback_args, encode_failure, run_buffer_adapter,
-};
+pub use calcit_native_ffi::{CalcitFfiAsyncHostV1, CalcitFfiAsyncTaskV1, decode_request, encode_callback_args, encode_failure};
 
 pub const ASYNC_STATUS_OK: i32 = calcit_native_ffi::status::OK;
 pub const ASYNC_STATUS_HANDLE_CLOSING: i32 = calcit_native_ffi::status::HANDLE_CLOSING;

@@ -397,16 +397,7 @@ fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
   }
 }
 
-/// Send one WebSocket message through buffer protocol v1.
-///
-/// # Safety
-///
-/// Request bytes must remain readable and `output` writable for this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wss_send_calcit_ffi_v1(request_ptr: *const u8, request_len: usize, output: *mut CalcitFfiBuffer) -> i32 {
-  // SAFETY: the shared adapter validates, copies, and contains all inputs.
-  unsafe { run_buffer_adapter(request_ptr, request_len, output, wss_send) }
-}
+calcit_native_ffi::export_edn_buffer_method_v1!(wss_send_calcit_ffi_v1, wss_send);
 
 unsafe fn start_wss_each_async_v1(
   request_ptr: *const u8,
@@ -496,6 +487,7 @@ pub unsafe extern "C" fn wss_each_calcit_ffi_async_v1(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use calcit_native_ffi::CalcitFfiBuffer;
   use std::net::TcpListener;
   use std::ptr;
   use std::sync::atomic::Ordering;
