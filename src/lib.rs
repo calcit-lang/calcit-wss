@@ -352,9 +352,13 @@ fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>,
         match commands.try_recv() {
           Ok(queued) => {
             metrics.dequeue(queued.bytes);
-            socket
-              .write_message(queued.message)
-              .map_err(|error| (DisconnectReason::WriteFailed, format!("failed to write WebSocket message: {error}")))?;
+            if let Err(error) = socket.write_message(queued.message) {
+              if control.cancelled.load(Ordering::Acquire) {
+                let _ = socket.close(None);
+                return Ok(DisconnectReason::ServerCancelled);
+              }
+              return Err((DisconnectReason::WriteFailed, format!("failed to write WebSocket message: {error}")));
+            }
             if control.cancelled.load(Ordering::Acquire) {
               let _ = socket.close(None);
               return Ok(DisconnectReason::ServerCancelled);
@@ -394,10 +398,23 @@ fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>,
               "WebSocket server stopped while publishing binary data".to_owned(),
             )
           })?,
-        Ok(SafeMessage::Close(_)) => return Ok(DisconnectReason::PeerClosed),
+        Ok(SafeMessage::Close(_)) => {
+          return Ok(if control.cancelled.load(Ordering::Acquire) {
+            DisconnectReason::ServerCancelled
+          } else {
+            DisconnectReason::PeerClosed
+          });
+        }
         Ok(SafeMessage::Ping(_) | SafeMessage::Pong(_) | SafeMessage::Frame(_)) => {}
-        Err(WebSocketError::ConnectionClosed | WebSocketError::AlreadyClosed) => return Ok(DisconnectReason::PeerClosed),
+        Err(WebSocketError::ConnectionClosed | WebSocketError::AlreadyClosed) => {
+          return Ok(if control.cancelled.load(Ordering::Acquire) {
+            DisconnectReason::ServerCancelled
+          } else {
+            DisconnectReason::PeerClosed
+          });
+        }
         Err(error) if websocket_error_is_retryable(&error) => {}
+        Err(_) if control.cancelled.load(Ordering::Acquire) => return Ok(DisconnectReason::ServerCancelled),
         Err(error) => return Err((DisconnectReason::ReadFailed, format!("WebSocket read failed: {error}"))),
       }
     }
@@ -754,6 +771,7 @@ mod tests {
   use std::net::TcpListener;
   use std::ptr;
   use std::sync::atomic::Ordering;
+  use std::sync::mpsc::sync_channel;
   use std::thread::spawn;
   use std::time::Instant;
 
@@ -1041,5 +1059,73 @@ mod tests {
         .any(|payload| payload.contains("'message") && payload.contains("from-client")),
       "recorded payloads: {payloads:?}"
     );
+  }
+
+  #[test]
+  fn real_slow_reader_backpressures_and_cancel_preserves_backlog() {
+    let _guard = TEST_LOCK.lock().expect("test lock");
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind slow-reader listener");
+    let port = listener.local_addr().expect("slow-reader address").port();
+    let (events, event_rx) = channel();
+    let control = Arc::new(ServerControl {
+      cancelled: AtomicBool::new(false),
+    });
+    let worker_control = Arc::clone(&control);
+    let (done_tx, done_rx) = sync_channel(1);
+    let worker = spawn(move || {
+      let (stream, _) = listener.accept().expect("accept slow reader");
+      socket2::SockRef::from(&stream)
+        .set_send_buffer_size(4 * 1024)
+        .expect("limit server socket send buffer");
+      let result = run_safe_client(stream, 9_001, events, worker_control);
+      done_tx.send(result).expect("report slow-reader result");
+    });
+
+    let url = format!("ws://127.0.0.1:{port}");
+    let (socket, _) = tungstenite::connect(url.as_str()).expect("connect slow reader");
+    let client = match event_rx.recv_timeout(Duration::from_secs(2)).expect("connected event") {
+      SafeEvent::Connect(9_001, client) => client,
+      _ => panic!("expected connected slow reader"),
+    };
+
+    let payload = "x".repeat(OUTBOUND_MESSAGE_BYTES);
+    assert_eq!(client.try_send_text(payload.clone()), SendOutcome::Accepted);
+    std::thread::sleep(Duration::from_millis(20));
+    let mut accepted = 1;
+    let mut backpressured = false;
+    for _ in 0..128 {
+      match client.try_send_text(payload.clone()) {
+        SendOutcome::Accepted => accepted += 1,
+        SendOutcome::Backpressured => {
+          backpressured = true;
+          break;
+        }
+        outcome => panic!("unexpected slow-reader send outcome: {outcome:?}"),
+      }
+    }
+    assert!(
+      backpressured,
+      "real slow reader must fill the outbound queue after {accepted} accepted messages"
+    );
+    let before_cancel = client.metrics.usage();
+    assert!(before_cancel.0 > 0, "cancellation test requires a queued backlog");
+
+    control.cancelled.store(true, Ordering::Release);
+    drop(socket);
+    done_rx
+      .recv_timeout(Duration::from_secs(2))
+      .expect("slow-reader worker must stop after cancellation")
+      .expect("cancellation must be a clean worker outcome");
+    worker.join().expect("slow-reader worker join");
+
+    let after_cancel = client.metrics.usage();
+    assert!(
+      before_cancel.0.saturating_sub(after_cancel.0) <= 1,
+      "cancellation drained more than one queued message: before={before_cancel:?}, after={after_cancel:?}"
+    );
+    assert!(matches!(
+      event_rx.recv_timeout(Duration::from_secs(1)),
+      Ok(SafeEvent::Disconnect(9_001, DisconnectReason::ServerCancelled))
+    ));
   }
 }
