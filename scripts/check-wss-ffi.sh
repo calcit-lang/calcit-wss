@@ -5,6 +5,7 @@ set -euo pipefail
 smoke_dir="$(mktemp -d)"
 smoke_log="$smoke_dir/calcit-wss-server.log"
 server_pid=""
+calcit_bin="${CALCIT_BIN:-calcit}"
 
 cleanup() {
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
@@ -15,19 +16,22 @@ cleanup() {
 }
 trap cleanup EXIT
 
-calcit calcit.cirru eval --dep ./ -- 'ns app.main $ :require
-  wss.core :refer $ wss-serve! wss-each! wss-send!
+"$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
+  wss.core :refer $ wss-serve! wss-each! wss-send! wss-metrics
 
 let
     task-ref $ atom &unit
     task $ wss-serve!
       {} (:port 19001)
       fn (event)
-        tag-match event
+        match event
           (:message client-id text)
             wss-each! $ fn (connected-id)
-              tag-match (wss-send! connected-id |from-calcit)
-                (:accepted) (.cancel-with (deref task-ref) :smoke-complete)
+              match (wss-send! connected-id |from-calcit)
+                (:accepted)
+                  do
+                    println $ wss-metrics
+                    .cancel-with (deref task-ref) :smoke-complete
                 _ $ raise |unexpected-send-outcome
           _ &unit
   reset! task-ref task
@@ -79,6 +83,12 @@ server_pid=""
 if grep -q '\[Error\]' "$smoke_log"; then
   cat "$smoke_log"
   echo "Calcit WebSocket smoke reported an async FFI error" >&2
+  exit 1
+fi
+
+if ! grep -q 'WssMetrics' "$smoke_log"; then
+  cat "$smoke_log"
+  echo "Calcit WebSocket smoke did not decode the typed metrics snapshot" >&2
   exit 1
 fi
 

@@ -3,17 +3,17 @@ mod ffi;
 calcit_native_ffi::export_buffer_abi_v1!();
 calcit_native_ffi::export_async_abi_v1!();
 
-use cirru_edn::Edn;
+use cirru_edn::{Edn, EdnStructView};
 use ffi::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::ErrorKind;
 use std::net::{TcpListener, TcpStream};
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{Sender, SyncSender, TryRecvError, TrySendError, channel, sync_channel};
 use std::sync::{Arc, LazyLock, Mutex, RwLock};
 use std::thread::{Builder, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tungstenite::{Error as WebSocketError, Message as SafeMessage, accept};
 
 const OUTBOUND_QUEUE_MESSAGES: usize = 64;
@@ -32,7 +32,7 @@ static SERVER_CONTROLS: LazyLock<Mutex<HashMap<u64, Arc<ServerControl>>>> = Lazy
 
 enum SafeEvent {
   Connect(u64, ClientHandle),
-  Disconnect(u64),
+  Disconnect(u64, DisconnectReason),
   Message(u64, SafeMessage),
 }
 
@@ -41,10 +41,72 @@ struct QueuedMessage {
   bytes: usize,
 }
 
+#[derive(Default)]
+struct ClientMetrics {
+  enqueue_lock: Mutex<()>,
+  queue: Mutex<ClientQueueMetrics>,
+}
+
+#[derive(Default)]
+struct ClientQueueMetrics {
+  queued_messages: usize,
+  queued_bytes: usize,
+  enqueued_at: VecDeque<Instant>,
+}
+
+impl ClientMetrics {
+  fn try_reserve(&self, bytes: usize) -> bool {
+    let mut queue = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let Some(next) = queue.queued_bytes.checked_add(bytes).filter(|next| *next <= OUTBOUND_QUEUE_BYTES) else {
+      return false;
+    };
+    queue.queued_bytes = next;
+    queue.queued_messages += 1;
+    queue.enqueued_at.push_back(Instant::now());
+    true
+  }
+
+  fn release_newest(&self, bytes: usize) {
+    let mut queue = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    queue.queued_bytes = queue.queued_bytes.checked_sub(bytes).expect("reserved WebSocket bytes must exist");
+    queue.queued_messages = queue.queued_messages.checked_sub(1).expect("reserved WebSocket message must exist");
+    let removed = queue.enqueued_at.pop_back();
+    debug_assert!(removed.is_some(), "reserved WebSocket timestamp must exist");
+  }
+
+  fn dequeue(&self, bytes: usize) {
+    let mut queue = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    queue.queued_bytes = queue.queued_bytes.checked_sub(bytes).expect("queued WebSocket bytes must exist");
+    queue.queued_messages = queue.queued_messages.checked_sub(1).expect("queued WebSocket message must exist");
+    let removed = queue.enqueued_at.pop_front();
+    debug_assert!(removed.is_some(), "queued WebSocket timestamp must exist");
+  }
+
+  #[cfg(test)]
+  fn usage(&self) -> (usize, usize) {
+    let queue = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    (queue.queued_messages, queue.queued_bytes)
+  }
+
+  fn snapshot(&self, client_id: u64) -> Edn {
+    let queue = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let oldest_age_ms = queue
+      .enqueued_at
+      .front()
+      .map_or(0, |started| started.elapsed().as_millis().min(u64::MAX as u128) as u64);
+    let mut value = EdnStructView::new("WssClientMetrics");
+    value.insert("client-id", Edn::Number(client_id as f64));
+    value.insert("queue-depth", Edn::Number(queue.queued_messages as f64));
+    value.insert("queue-bytes", Edn::Number(queue.queued_bytes as f64));
+    value.insert("oldest-age-ms", Edn::Number(oldest_age_ms as f64));
+    value.into()
+  }
+}
+
 #[derive(Clone)]
 struct ClientHandle {
   outgoing: SyncSender<QueuedMessage>,
-  queued_bytes: Arc<AtomicUsize>,
+  metrics: Arc<ClientMetrics>,
   close_requested: Arc<AtomicBool>,
 }
 
@@ -55,6 +117,93 @@ enum SendOutcome {
   TooLarge,
   Closed,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DisconnectReason {
+  PeerClosed,
+  ServerCancelled,
+  LocalClose,
+  CommandChannelClosed,
+  ReadFailed,
+  WriteFailed,
+}
+
+#[derive(Default)]
+struct WssMetrics {
+  accepted: AtomicU64,
+  backpressured: AtomicU64,
+  too_large: AtomicU64,
+  closed: AtomicU64,
+  peer_closed: AtomicU64,
+  server_cancelled: AtomicU64,
+  local_close: AtomicU64,
+  command_channel_closed: AtomicU64,
+  read_failed: AtomicU64,
+  write_failed: AtomicU64,
+}
+
+impl WssMetrics {
+  fn record_send(&self, outcome: &SendOutcome) {
+    let counter = match outcome {
+      SendOutcome::Accepted => &self.accepted,
+      SendOutcome::Backpressured => &self.backpressured,
+      SendOutcome::TooLarge => &self.too_large,
+      SendOutcome::Closed => &self.closed,
+    };
+    counter.fetch_add(1, Ordering::Relaxed);
+  }
+
+  fn record_disconnect(&self, reason: DisconnectReason) {
+    let counter = match reason {
+      DisconnectReason::PeerClosed => &self.peer_closed,
+      DisconnectReason::ServerCancelled => &self.server_cancelled,
+      DisconnectReason::LocalClose => &self.local_close,
+      DisconnectReason::CommandChannelClosed => &self.command_channel_closed,
+      DisconnectReason::ReadFailed => &self.read_failed,
+      DisconnectReason::WriteFailed => &self.write_failed,
+    };
+    counter.fetch_add(1, Ordering::Relaxed);
+  }
+
+  fn snapshot(&self) -> Result<Edn, String> {
+    let clients = CLIENTS.read().map_err(|_| "wss clients lock poisoned".to_owned())?;
+    let mut handles = clients.iter().collect::<Vec<_>>();
+    handles.sort_by_key(|(client_id, _)| **client_id);
+    let clients = Edn::List(cirru_edn::EdnListView(
+      handles
+        .into_iter()
+        .map(|(client_id, client)| client.metrics.snapshot(*client_id))
+        .collect(),
+    ));
+    let mut send_outcomes = EdnStructView::new("WssSendMetrics");
+    send_outcomes.insert("accepted", Edn::Number(self.accepted.load(Ordering::Relaxed) as f64));
+    send_outcomes.insert("backpressured", Edn::Number(self.backpressured.load(Ordering::Relaxed) as f64));
+    send_outcomes.insert("too-large", Edn::Number(self.too_large.load(Ordering::Relaxed) as f64));
+    send_outcomes.insert("closed", Edn::Number(self.closed.load(Ordering::Relaxed) as f64));
+
+    let mut disconnect_reasons = EdnStructView::new("WssDisconnectMetrics");
+    disconnect_reasons.insert("peer-closed", Edn::Number(self.peer_closed.load(Ordering::Relaxed) as f64));
+    disconnect_reasons.insert(
+      "server-cancelled",
+      Edn::Number(self.server_cancelled.load(Ordering::Relaxed) as f64),
+    );
+    disconnect_reasons.insert("local-close", Edn::Number(self.local_close.load(Ordering::Relaxed) as f64));
+    disconnect_reasons.insert(
+      "command-channel-closed",
+      Edn::Number(self.command_channel_closed.load(Ordering::Relaxed) as f64),
+    );
+    disconnect_reasons.insert("read-failed", Edn::Number(self.read_failed.load(Ordering::Relaxed) as f64));
+    disconnect_reasons.insert("write-failed", Edn::Number(self.write_failed.load(Ordering::Relaxed) as f64));
+
+    let mut value = EdnStructView::new("WssMetrics");
+    value.insert("clients", clients);
+    value.insert("send-outcomes", send_outcomes.into());
+    value.insert("disconnect-reasons", disconnect_reasons.into());
+    Ok(value.into())
+  }
+}
+
+static WSS_METRICS: LazyLock<WssMetrics> = LazyLock::new(WssMetrics::default);
 
 impl SendOutcome {
   fn into_edn(self) -> Edn {
@@ -74,21 +223,12 @@ impl ClientHandle {
     if bytes > OUTBOUND_MESSAGE_BYTES {
       return SendOutcome::TooLarge;
     }
+    let _enqueue_guard = self.metrics.enqueue_lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     if self.close_requested.load(Ordering::Acquire) {
       return SendOutcome::Closed;
     }
-    let mut queued = self.queued_bytes.load(Ordering::Acquire);
-    loop {
-      let Some(next) = queued.checked_add(bytes).filter(|next| *next <= OUTBOUND_QUEUE_BYTES) else {
-        return SendOutcome::Backpressured;
-      };
-      match self
-        .queued_bytes
-        .compare_exchange_weak(queued, next, Ordering::AcqRel, Ordering::Acquire)
-      {
-        Ok(_) => break,
-        Err(actual) => queued = actual,
-      }
+    if !self.metrics.try_reserve(bytes) {
+      return SendOutcome::Backpressured;
     }
     match self.outgoing.try_send(QueuedMessage {
       message: SafeMessage::Text(text),
@@ -96,11 +236,11 @@ impl ClientHandle {
     }) {
       Ok(()) => SendOutcome::Accepted,
       Err(TrySendError::Full(_)) => {
-        self.queued_bytes.fetch_sub(bytes, Ordering::AcqRel);
+        self.metrics.release_newest(bytes);
         SendOutcome::Backpressured
       }
       Err(TrySendError::Disconnected(_)) => {
-        self.queued_bytes.fetch_sub(bytes, Ordering::AcqRel);
+        self.metrics.release_newest(bytes);
         SendOutcome::Closed
       }
     }
@@ -193,62 +333,83 @@ fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>,
     .set_write_timeout(Some(Duration::from_millis(250)))
     .map_err(|error| format!("failed to set WebSocket write timeout: {error}"))?;
   let (outgoing, commands) = sync_channel(OUTBOUND_QUEUE_MESSAGES);
-  let queued_bytes = Arc::new(AtomicUsize::new(0));
+  let metrics = Arc::new(ClientMetrics::default());
   let close_requested = Arc::new(AtomicBool::new(false));
   events
     .send(SafeEvent::Connect(
       client_id,
       ClientHandle {
         outgoing,
-        queued_bytes: Arc::clone(&queued_bytes),
+        metrics: Arc::clone(&metrics),
         close_requested: Arc::clone(&close_requested),
       },
     ))
     .map_err(|_| "WebSocket server stopped during client connect".to_owned())?;
 
-  let result = (|| -> Result<(), String> {
+  let result = (|| -> Result<DisconnectReason, (DisconnectReason, String)> {
     loop {
       loop {
         match commands.try_recv() {
           Ok(queued) => {
-            queued_bytes.fetch_sub(queued.bytes, Ordering::AcqRel);
+            metrics.dequeue(queued.bytes);
             socket
               .write_message(queued.message)
-              .map_err(|error| format!("failed to write WebSocket message: {error}"))?;
-            if control.cancelled.load(Ordering::Acquire) || close_requested.load(Ordering::Acquire) {
+              .map_err(|error| (DisconnectReason::WriteFailed, format!("failed to write WebSocket message: {error}")))?;
+            if control.cancelled.load(Ordering::Acquire) {
               let _ = socket.close(None);
-              return Ok(());
+              return Ok(DisconnectReason::ServerCancelled);
+            }
+            if close_requested.load(Ordering::Acquire) {
+              let _ = socket.close(None);
+              return Ok(DisconnectReason::LocalClose);
             }
           }
           Err(TryRecvError::Empty) => break,
           Err(TryRecvError::Disconnected) => {
             let _ = socket.close(None);
-            return Ok(());
+            return Ok(DisconnectReason::CommandChannelClosed);
           }
         }
       }
-      if control.cancelled.load(Ordering::Acquire) || close_requested.load(Ordering::Acquire) {
+      if control.cancelled.load(Ordering::Acquire) {
         let _ = socket.close(None);
-        return Ok(());
+        return Ok(DisconnectReason::ServerCancelled);
+      }
+      if close_requested.load(Ordering::Acquire) {
+        let _ = socket.close(None);
+        return Ok(DisconnectReason::LocalClose);
       }
       match socket.read_message() {
-        Ok(SafeMessage::Text(text)) => events
-          .send(SafeEvent::Message(client_id, SafeMessage::Text(text)))
-          .map_err(|_| "WebSocket server stopped while publishing text".to_owned())?,
+        Ok(SafeMessage::Text(text)) => events.send(SafeEvent::Message(client_id, SafeMessage::Text(text))).map_err(|_| {
+          (
+            DisconnectReason::ServerCancelled,
+            "WebSocket server stopped while publishing text".to_owned(),
+          )
+        })?,
         Ok(SafeMessage::Binary(bytes)) => events
           .send(SafeEvent::Message(client_id, SafeMessage::Binary(bytes)))
-          .map_err(|_| "WebSocket server stopped while publishing binary data".to_owned())?,
-        Ok(SafeMessage::Close(_)) => return Ok(()),
+          .map_err(|_| {
+            (
+              DisconnectReason::ServerCancelled,
+              "WebSocket server stopped while publishing binary data".to_owned(),
+            )
+          })?,
+        Ok(SafeMessage::Close(_)) => return Ok(DisconnectReason::PeerClosed),
         Ok(SafeMessage::Ping(_) | SafeMessage::Pong(_) | SafeMessage::Frame(_)) => {}
-        Err(WebSocketError::ConnectionClosed | WebSocketError::AlreadyClosed) => return Ok(()),
+        Err(WebSocketError::ConnectionClosed | WebSocketError::AlreadyClosed) => return Ok(DisconnectReason::PeerClosed),
         Err(error) if websocket_error_is_retryable(&error) => {}
-        Err(error) => return Err(format!("WebSocket read failed: {error}")),
+        Err(error) => return Err((DisconnectReason::ReadFailed, format!("WebSocket read failed: {error}"))),
       }
     }
   })();
 
-  let _ = events.send(SafeEvent::Disconnect(client_id));
-  result
+  let reason = match &result {
+    Ok(reason) => *reason,
+    Err((reason, _)) => *reason,
+  };
+  WSS_METRICS.record_disconnect(reason);
+  let _ = events.send(SafeEvent::Disconnect(client_id, reason));
+  result.map(|_| ()).map_err(|(_, error)| error)
 }
 
 fn publish_server_event(
@@ -286,7 +447,7 @@ fn handle_safe_event(
       owned_clients.insert(client_id);
       publish_server_event(host, task, control, Edn::enum_value("connect", vec![Edn::Number(client_id as f64)]))
     }
-    SafeEvent::Disconnect(client_id) => {
+    SafeEvent::Disconnect(client_id, _reason) => {
       CLIENTS
         .write()
         .map_err(|_| "wss clients lock poisoned".to_owned())?
@@ -474,12 +635,11 @@ fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
     match (&args[0], &args[1]) {
       (Edn::Number(id), Edn::Str(s)) if id.is_finite() && id.fract() == 0.0 && (0.0..=9_007_199_254_740_991.0).contains(id) => {
         let clients = CLIENTS.read().map_err(|_| "wss clients lock poisoned".to_owned())?;
-        Ok(
-          clients
-            .get(&(*id as u64))
-            .map_or(SendOutcome::Closed, |client| client.try_send_text(s.to_string()))
-            .into_edn(),
-        )
+        let outcome = clients
+          .get(&(*id as u64))
+          .map_or(SendOutcome::Closed, |client| client.try_send_text(s.to_string()));
+        WSS_METRICS.record_send(&outcome);
+        Ok(outcome.into_edn())
       }
       (a, b) => Err(format!(
         "wss-send expected a non-negative safe integer id and string message, got {a} {b}"
@@ -491,6 +651,16 @@ fn wss_send(args: Vec<Edn>) -> Result<Edn, String> {
 }
 
 calcit_native_ffi::export_edn_buffer_method_v1!(wss_send_calcit_ffi_v1, wss_send);
+
+fn wss_metrics(args: Vec<Edn>) -> Result<Edn, String> {
+  if args.is_empty() {
+    WSS_METRICS.snapshot()
+  } else {
+    Err(format!("wss_metrics expected no arguments, got {}", args.len()))
+  }
+}
+
+calcit_native_ffi::export_edn_buffer_method_v1!(wss_metrics_calcit_ffi_v1, wss_metrics);
 
 unsafe fn start_wss_each_async_v1(
   request_ptr: *const u8,
@@ -690,20 +860,20 @@ mod tests {
   #[test]
   fn outbound_queue_reports_message_count_backpressure_and_closed() {
     let (outgoing, commands) = sync_channel(1);
-    let queued_bytes = Arc::new(AtomicUsize::new(0));
+    let metrics = Arc::new(ClientMetrics::default());
     let close_requested = Arc::new(AtomicBool::new(false));
     let client = ClientHandle {
       outgoing,
-      queued_bytes: Arc::clone(&queued_bytes),
+      metrics: Arc::clone(&metrics),
       close_requested: Arc::clone(&close_requested),
     };
 
     assert_eq!(client.try_send_text("first".to_owned()), SendOutcome::Accepted);
     assert_eq!(client.try_send_text("second".to_owned()), SendOutcome::Backpressured);
-    assert_eq!(queued_bytes.load(Ordering::Acquire), 5);
+    assert_eq!(metrics.usage(), (1, 5));
 
     let first = commands.try_recv().expect("first queued message");
-    queued_bytes.fetch_sub(first.bytes, Ordering::AcqRel);
+    metrics.dequeue(first.bytes);
     drop(commands);
     assert_eq!(client.try_send_text("closed".to_owned()), SendOutcome::Closed);
 
@@ -714,10 +884,10 @@ mod tests {
   #[test]
   fn outbound_queue_limits_each_message_and_total_bytes() {
     let (outgoing, _commands) = sync_channel(OUTBOUND_QUEUE_MESSAGES);
-    let queued_bytes = Arc::new(AtomicUsize::new(0));
+    let metrics = Arc::new(ClientMetrics::default());
     let client = ClientHandle {
       outgoing,
-      queued_bytes: Arc::clone(&queued_bytes),
+      metrics: Arc::clone(&metrics),
       close_requested: Arc::new(AtomicBool::new(false)),
     };
 
@@ -725,8 +895,70 @@ mod tests {
     for _ in 0..(OUTBOUND_QUEUE_BYTES / OUTBOUND_MESSAGE_BYTES) {
       assert_eq!(client.try_send_text("x".repeat(OUTBOUND_MESSAGE_BYTES)), SendOutcome::Accepted);
     }
-    assert_eq!(queued_bytes.load(Ordering::Acquire), OUTBOUND_QUEUE_BYTES);
+    assert_eq!(metrics.usage(), (4, OUTBOUND_QUEUE_BYTES));
     assert_eq!(client.try_send_text("x".to_owned()), SendOutcome::Backpressured);
+  }
+
+  #[test]
+  fn concurrent_sends_keep_exact_queue_metrics() {
+    let (outgoing, commands) = sync_channel(OUTBOUND_QUEUE_MESSAGES);
+    let metrics = Arc::new(ClientMetrics::default());
+    let client = Arc::new(ClientHandle {
+      outgoing,
+      metrics: Arc::clone(&metrics),
+      close_requested: Arc::new(AtomicBool::new(false)),
+    });
+    let mut senders = vec![];
+    for worker in 0..8 {
+      let client = Arc::clone(&client);
+      senders.push(spawn(move || {
+        for item in 0..8 {
+          let message = format!("{worker}-{item}");
+          assert_eq!(client.try_send_text(message), SendOutcome::Accepted);
+        }
+      }));
+    }
+    for sender in senders {
+      sender.join().expect("concurrent sender");
+    }
+
+    let (queued_messages, queued_bytes) = metrics.usage();
+    assert_eq!(queued_messages, OUTBOUND_QUEUE_MESSAGES);
+    assert!(queued_bytes > 0);
+    let mut received = HashSet::new();
+    while let Ok(queued) = commands.try_recv() {
+      let SafeMessage::Text(message) = queued.message else {
+        panic!("expected queued text message");
+      };
+      assert!(received.insert(message), "duplicate queued message");
+      metrics.dequeue(queued.bytes);
+    }
+    assert_eq!(received.len(), OUTBOUND_QUEUE_MESSAGES);
+    assert_eq!(metrics.usage(), (0, 0));
+  }
+
+  #[test]
+  fn metrics_snapshot_reports_oldest_age_and_named_structs() {
+    let metrics = ClientMetrics::default();
+    assert!(metrics.try_reserve(7));
+    std::thread::sleep(Duration::from_millis(2));
+    let Edn::Struct(client_snapshot) = metrics.snapshot(42) else {
+      panic!("client metrics must be a named struct");
+    };
+    assert_eq!(client_snapshot.name.as_ref(), "WssClientMetrics");
+    assert_eq!(client_snapshot["client-id"], Edn::Number(42.0));
+    assert_eq!(client_snapshot["queue-depth"], Edn::Number(1.0));
+    assert_eq!(client_snapshot["queue-bytes"], Edn::Number(7.0));
+    assert!(matches!(client_snapshot["oldest-age-ms"], Edn::Number(age) if age >= 1.0));
+    metrics.release_newest(7);
+
+    let Edn::Struct(snapshot) = wss_metrics(vec![]).expect("metrics snapshot") else {
+      panic!("WSS metrics must be a named struct");
+    };
+    assert_eq!(snapshot.name.as_ref(), "WssMetrics");
+    assert!(matches!(snapshot["send-outcomes"], Edn::Struct(ref value) if value.name.as_ref() == "WssSendMetrics"));
+    assert!(matches!(snapshot["disconnect-reasons"], Edn::Struct(ref value) if value.name.as_ref() == "WssDisconnectMetrics"));
+    assert!(wss_metrics(vec![Edn::Nil]).is_err());
   }
 
   #[test]
@@ -738,6 +970,8 @@ mod tests {
     let port = probe.local_addr().expect("test address").port();
     drop(probe);
 
+    let cancelled_before = WSS_METRICS.server_cancelled.load(Ordering::Relaxed);
+    let accepted_before = WSS_METRICS.accepted.load(Ordering::Relaxed);
     let control = Arc::new(ServerControl {
       cancelled: AtomicBool::new(false),
     });
@@ -788,6 +1022,8 @@ mod tests {
 
     server.join().expect("server worker join").expect("server shutdown");
     assert!(!CLIENTS.read().expect("clients lock").contains_key(&client_id));
+    assert_eq!(WSS_METRICS.accepted.load(Ordering::Relaxed), accepted_before + 1);
+    assert_eq!(WSS_METRICS.server_cancelled.load(Ordering::Relaxed), cancelled_before + 1);
 
     let payloads = RECORDED_EVENTS
       .lock()

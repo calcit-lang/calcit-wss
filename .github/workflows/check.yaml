@@ -35,7 +35,8 @@ jobs:
           grep -q ' wss_serve_calcit_ffi_async_v1$' <<<"$exports"
           grep -q ' wss_each_calcit_ffi_async_v1$' <<<"$exports"
           grep -q ' wss_send_calcit_ffi_v1$' <<<"$exports"
-          ! grep -Eq ' (abi_version|edn_version|wss_serve|wss_each|wss_send)$' <<<"$exports"
+          grep -q ' wss_metrics_calcit_ffi_v1$' <<<"$exports"
+          ! grep -Eq ' (abi_version|edn_version|wss_serve|wss_each|wss_send|wss_metrics)$' <<<"$exports"
 
       - run: mkdir -p dylibs/ && cp -v target/release/libcalcit_wss.so dylibs/
 
