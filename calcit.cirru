@@ -12,11 +12,34 @@
   :files $ {}
     |wss.core $ %{} 'FileEntry
       :defs $ {}
+        |WssClientMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote
+            defstruct WssClientMetrics (:client-id 'Number) (:queue-depth 'Number) (:queue-bytes 'Number) (:oldest-age-ms 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
+        |WssDisconnectMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote
+            defstruct WssDisconnectMetrics (:peer-closed 'Number) (:server-cancelled 'Number) (:local-close 'Number) (:command-channel-closed 'Number) (:read-failed 'Number) (:write-failed 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         |WssEvent $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defenum WssEvent (:connect 'Number) (:disconnect 'Number) (:message 'Number 'String) (:blob 'Number 'Buffer)
           :examples $ []
           :schema $ :: 'EnumDef
+        |WssMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote
+            defstruct WssMetrics
+              :clients $ :: 'List 'WssClientMetrics
+              :send-outcomes 'WssSendMetrics
+              :disconnect-reasons 'WssDisconnectMetrics
+          :examples $ []
+          :schema $ :: 'StructDef
+        |WssSendMetrics $ %{} 'CodeEntry (:doc |)
+          :code $ quote
+            defstruct WssSendMetrics (:accepted 'Number) (:backpressured 'Number) (:too-large 'Number) (:closed 'Number)
+          :examples $ []
+          :schema $ :: 'StructDef
         |WssSendOutcome $ %{} 'CodeEntry (:doc "|Outbound send result: accepted, backpressured, too-large, or closed.")
           :code $ quote
             defenum WssSendOutcome (:accepted) (:backpressured) (:too-large) (:closed)
@@ -32,12 +55,19 @@
               :args $ []
                 :: 'Fn $ {} (:return 'Unit)
                   :args $ [] 'Number
+        |wss-metrics $ %{} 'CodeEntry (:doc "|Return a typed process-lifetime metrics snapshot with live per-client queue depth, bytes, oldest age, send outcomes, and disconnect reasons.")
+          :code $ quote
+            defn wss-metrics () $ &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_metrics
+          :examples $ []
+          :schema $ :: 'Fn
+            {} (:return 'wss.core/WssMetrics)
+              :args $ []
         |wss-send! $ %{} 'CodeEntry (:doc "|Try to enqueue a text message for one WebSocket client. Returns WssSendOutcome; backpressured and too-large are normal flow-control results.")
           :code $ quote
             defn wss-send! (client message)
               let
                   outcome $ &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
-                tag-match outcome
+                match outcome
                   (:accepted) (%:: WssSendOutcome :accepted)
                   (:backpressured) (%:: WssSendOutcome :backpressured)
                   (:too-large) (%:: WssSendOutcome :too-large)

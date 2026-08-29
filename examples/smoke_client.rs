@@ -27,5 +27,8 @@ fn main() -> Result<(), String> {
   if response != Message::Text("from-calcit".to_owned()) {
     return Err(format!("unexpected WebSocket smoke response: {response:?}"));
   }
+  socket
+    .close(None)
+    .map_err(|error| format!("failed to close WebSocket smoke client cleanly: {error}"))?;
   Ok(())
 }

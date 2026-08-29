@@ -22,7 +22,13 @@ only after native resources are released. `wss-send!` accepts a non-negative
 safe-integer client id and a string message, then returns `(:accepted)`,
 `(:backpressured)`, `(:too-large)`, or `(:closed)`. These outcomes are normal
 flow control rather than exceptions. `wss-each!` iterates over a stable snapshot
-of currently connected client ids.
+of currently connected client ids. `wss-metrics` returns a typed `WssMetrics`
+snapshot containing live per-client queue depth/bytes/oldest age plus cumulative
+process-lifetime send outcomes and disconnect reasons.
+
+`wss-metrics` 返回类型化的 `WssMetrics` 快照：其中包含当前每个连接的队列深度、
+累计字节数和最老消息等待时间，以及进程生命周期内累计的 send outcome 与断开原因。
+该接口用于诊断和模板层策略，不会改变、合并或消费业务队列。
 
 每个连接的 outbound 业务队列按消息数和累计字节数双重限制（当前分别为 64 条、
 1 MiB，单消息上限 256 KiB）。队列满时模块不会丢弃或合并 patch，而是返回
@@ -41,7 +47,7 @@ backlog.
 
 Maintainers can run `bash scripts/check-wss-ffi.sh` after copying the release
 dylib into `dylibs/`; it requires connect, inbound message, buffer-v1 send,
-task cancellation, and clean host exit to all succeed.
+typed metrics decoding, task cancellation, and clean host exit to all succeed.
 
 ### 共享 FFI 基础层 / Shared FFI foundation
 
