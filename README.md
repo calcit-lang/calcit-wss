@@ -48,6 +48,14 @@ backlog.
 Maintainers can run `bash scripts/check-wss-ffi.sh` after copying the release
 dylib into `dylibs/`; it requires connect, inbound message, buffer-v1 send,
 typed metrics decoding, task cancellation, and clean host exit to all succeed.
+The Rust test suite additionally uses a real WebSocket whose peer completes the
+handshake but stops reading. It verifies queue-full backpressure, cancellation
+with a pending backlog, bounded post-cancel dequeue, and a `server-cancelled`
+disconnect reason even when cancellation races a socket error.
+
+Rust 测试还会建立一个完成握手后停止读取的真实 WebSocket，验证队列满时返回背压、
+存在 backlog 时取消不会继续 drain，并且取消与 socket error 竞态时仍统一记录为
+`server-cancelled`。
 
 ### 共享 FFI 基础层 / Shared FFI foundation
 
