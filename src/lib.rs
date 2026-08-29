@@ -1064,6 +1064,8 @@ mod tests {
   #[test]
   fn real_slow_reader_backpressures_and_cancel_preserves_backlog() {
     let _guard = TEST_LOCK.lock().expect("test lock");
+    let cancelled_before = WSS_METRICS.server_cancelled.load(Ordering::Relaxed);
+    let write_failed_before = WSS_METRICS.write_failed.load(Ordering::Relaxed);
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind slow-reader listener");
     let port = listener.local_addr().expect("slow-reader address").port();
     let (events, event_rx) = channel();
@@ -1111,18 +1113,20 @@ mod tests {
     assert!(before_cancel.0 > 0, "cancellation test requires a queued backlog");
 
     control.cancelled.store(true, Ordering::Release);
-    drop(socket);
     done_rx
       .recv_timeout(Duration::from_secs(2))
       .expect("slow-reader worker must stop after cancellation")
       .expect("cancellation must be a clean worker outcome");
     worker.join().expect("slow-reader worker join");
+    drop(socket);
 
     let after_cancel = client.metrics.usage();
     assert!(
       before_cancel.0.saturating_sub(after_cancel.0) <= 1,
       "cancellation drained more than one queued message: before={before_cancel:?}, after={after_cancel:?}"
     );
+    assert_eq!(WSS_METRICS.server_cancelled.load(Ordering::Relaxed), cancelled_before + 1);
+    assert_eq!(WSS_METRICS.write_failed.load(Ordering::Relaxed), write_failed_before);
     assert!(matches!(
       event_rx.recv_timeout(Duration::from_secs(1)),
       Ok(SafeEvent::Disconnect(9_001, DisconnectReason::ServerCancelled))

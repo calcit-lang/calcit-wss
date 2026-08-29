@@ -7,7 +7,7 @@ The bounded outbound queue and typed metrics had deterministic channel-level cov
 ## Change
 
 - Added a test-only `socket2` dependency to constrain the server-side socket send buffer.
-- Added a real slow-reader test that fills the outbound queue, observes `Backpressured`, cancels with a measurable backlog, and proves cancellation dequeues at most one additional accepted message.
+- Added a real slow-reader test that fills the outbound queue, observes `Backpressured`, cancels with a measurable backlog, and proves cancellation dequeues at most one additional accepted message without requiring the peer to disconnect.
 - Normalized close/read/write races after cancellation to `ServerCancelled` so disconnect metrics reflect the lifecycle owner instead of incidental socket timing.
 - Documented the system regression and its guarantees.
 
