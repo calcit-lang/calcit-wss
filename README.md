@@ -74,6 +74,16 @@ C-safe descriptors, buffer ownership, Cirru EDN adapters, and backpressure
 transport. The WebSocket client registry, connection workers, and
 cancellation/terminal ordering remain owned by this repository.
 
+Audit the versioned typed FFI contract without opening a socket:
+
+```bash
+calcit calcit.cirru ffi export --json --ns wss.core
+```
+
+该只读 inventory 会展示同步 send/metrics 边界，以及 `wss-serve!` 的 typed
+event、owned task 和 cooperative cancellation metadata；当前 v1 对 callback
+仍给出显式 unsupported diagnostic。
+
 普通 WebSocket 业务事件使用可取消背压：server 取消后最长 10ms 停止等待 host
 队列。队列持续饱和时默认最多等待 5 秒。清理 listener、连接 worker 与 client
 registry 后的 terminal 事件不应用业务取消 predicate，继续利用 host 预留容量收尾。

@@ -35,6 +35,24 @@ server-task.cancel-with :shutdown
 
 Cancel only when the application can stop accepting work. Terminal completion means the listener, connection workers, and registry have been cleaned up.
 
+The adapter records this boundary as an `async-stream` over
+`async-task-v1`: events have nominal type `WssEvent`, the returned task is
+owned by the caller, and cancellation is cooperative. Inspect the deterministic
+contract without starting a listener:
+
+```bash
+calcit calcit.cirru ffi export --json --ns wss.core
+```
+
+Interface IR v1 deliberately reports the callback and options map as
+unsupported generator inputs. The stream/cancel metadata remains available for
+the async bindgen pilot, but no generator may silently erase those types.
+
+该适配器把边界记录为基于 `async-task-v1` 的 `async-stream`：事件类型为
+`WssEvent`，返回 task 由调用方持有，取消采用 cooperative 语义。Interface IR
+v1 会明确报告 callback 与 options map 暂不可生成；异步试点仍能读取 stream/cancel
+元数据，但不能静默擦除这些类型。
+
 ## Send outcomes are flow control
 
 `wss-send!` returns `(:accepted)`, `(:backpressured)`, `(:too-large)`, or `(:closed)`. These are normal outcomes, not exceptions. Do not retry an arbitrary stale patch queue when a client is backpressured; retain the client acknowledgement and recompute a patch or send a snapshot from the authoritative projection.
