@@ -83,6 +83,10 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
+For task lifecycle, backpressure, metrics, and revision-aware resync guidance,
+use `calcit docs read "Bounded WebSocket servers" --module calcit-wss` after
+the module is installed.
+
 Run buildin demo with:
 
 ```bash
