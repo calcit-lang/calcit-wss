@@ -55,7 +55,12 @@ disconnect reason even when cancellation races a socket error.
 
 Rust 测试还会建立一个完成握手后停止读取的真实 WebSocket，验证队列满时返回背压、
 存在 backlog 时取消不会继续 drain，并且取消与 socket error 竞态时仍统一记录为
-`server-cancelled`。
+`server-cancelled`。操作系统用 `WouldBlock` / `TimedOut` 暂停 socket 写入时，worker
+会继续 flush tungstenite 已保留的 frame；不会重复入队，也不会把慢读端误判为断线。
+
+The writer also resumes tungstenite's retained frame after an operating-system
+`WouldBlock` or `TimedOut` result. It neither enqueues that message twice nor
+misclassifies an ordinary slow reader as a disconnected client.
 
 ### 共享 FFI 基础层 / Shared FFI foundation
 

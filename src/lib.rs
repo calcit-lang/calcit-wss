@@ -388,12 +388,31 @@ fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>,
         match commands.try_recv() {
           Ok(queued) => {
             metrics.dequeue(queued.bytes);
-            if let Err(error) = socket.write_message(queued.message) {
-              if control.cancelled.load(Ordering::Acquire) {
-                let _ = socket.close(None);
-                return Ok(DisconnectReason::ServerCancelled);
+            let mut write_result = socket.write_message(queued.message);
+            loop {
+              match write_result {
+                Ok(()) => break,
+                Err(error) if websocket_error_is_retryable(&error) => {
+                  if control.cancelled.load(Ordering::Acquire) {
+                    let _ = socket.close(None);
+                    return Ok(DisconnectReason::ServerCancelled);
+                  }
+                  if close_requested.load(Ordering::Acquire) {
+                    let _ = socket.close(None);
+                    return Ok(DisconnectReason::LocalClose);
+                  }
+                  // tungstenite already retained the partially written frame.
+                  // Resume that pending write instead of enqueueing it again.
+                  write_result = socket.write_pending();
+                }
+                Err(error) => {
+                  if control.cancelled.load(Ordering::Acquire) {
+                    let _ = socket.close(None);
+                    return Ok(DisconnectReason::ServerCancelled);
+                  }
+                  return Err((DisconnectReason::WriteFailed, format!("failed to write WebSocket message: {error}")));
+                }
               }
-              return Err((DisconnectReason::WriteFailed, format!("failed to write WebSocket message: {error}")));
             }
             if control.cancelled.load(Ordering::Acquire) {
               let _ = socket.close(None);
@@ -1224,6 +1243,14 @@ mod tests {
     );
     let before_cancel = client.metrics.usage();
     assert!(before_cancel.0 > 0, "cancellation test requires a queued backlog");
+    assert!(
+      matches!(
+        done_rx.recv_timeout(Duration::from_millis(350)),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+      ),
+      "retryable socket backpressure must keep the slow-reader connection alive"
+    );
+    assert_eq!(WSS_METRICS.write_failed.load(Ordering::Relaxed), write_failed_before);
 
     control.cancelled.store(true, Ordering::Release);
     done_rx
