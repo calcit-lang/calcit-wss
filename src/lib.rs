@@ -14,11 +14,17 @@ use std::sync::mpsc::{Sender, SyncSender, TryRecvError, TrySendError, channel, s
 use std::sync::{Arc, LazyLock, Mutex, RwLock};
 use std::thread::{Builder, JoinHandle};
 use std::time::{Duration, Instant};
-use tungstenite::{Error as WebSocketError, Message as SafeMessage, accept};
+use tungstenite::handshake::{
+  HandshakeError,
+  server::{NoCallback, ServerHandshake},
+};
+use tungstenite::{Error as WebSocketError, Message as SafeMessage, WebSocket};
 
 const OUTBOUND_QUEUE_MESSAGES: usize = 64;
 const OUTBOUND_QUEUE_BYTES: usize = 1024 * 1024;
 const OUTBOUND_MESSAGE_BYTES: usize = 256 * 1024;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const HANDSHAKE_RETRY_DELAY: Duration = Duration::from_millis(5);
 
 static CLIENTS: LazyLock<RwLock<HashMap<u64, ClientHandle>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
 static NEXT_CLIENT_ID: AtomicU64 = AtomicU64::new(1);
@@ -315,15 +321,45 @@ fn websocket_error_is_retryable(error: &WebSocketError) -> bool {
   matches!(error, WebSocketError::Io(io_error) if matches!(io_error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted))
 }
 
-fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>, control: Arc<ServerControl>) -> Result<(), String> {
+fn complete_websocket_handshake(stream: TcpStream, control: &ServerControl) -> Result<WebSocket<TcpStream>, String> {
   stream
-    .set_read_timeout(Some(Duration::from_secs(5)))
-    .map_err(|error| format!("failed to set WebSocket handshake timeout: {error}"))?;
-  let mut socket = accept(stream).map_err(|error| format!("WebSocket handshake failed: {error}"))?;
+    .set_nonblocking(true)
+    .map_err(|error| format!("failed to configure nonblocking WebSocket handshake: {error}"))?;
+  let deadline = Instant::now() + HANDSHAKE_TIMEOUT;
+  let mut handshake = ServerHandshake::start(stream, NoCallback, None);
+
+  loop {
+    if control.cancelled.load(Ordering::Acquire) {
+      return Err("WebSocket handshake cancelled".to_owned());
+    }
+    match handshake.handshake() {
+      Ok(socket) => return Ok(socket),
+      Err(HandshakeError::Interrupted(next)) => {
+        if Instant::now() >= deadline {
+          return Err("WebSocket handshake timed out".to_owned());
+        }
+        handshake = next;
+        std::thread::sleep(HANDSHAKE_RETRY_DELAY);
+      }
+      Err(HandshakeError::Failure(error)) => return Err(format!("WebSocket handshake failed: {error}")),
+    }
+  }
+}
+
+fn run_safe_client(stream: TcpStream, client_id: u64, events: Sender<SafeEvent>, control: Arc<ServerControl>) -> Result<(), String> {
+  let mut socket = match complete_websocket_handshake(stream, control.as_ref()) {
+    Ok(socket) => socket,
+    Err(_) if control.cancelled.load(Ordering::Acquire) => return Ok(()),
+    Err(error) => return Err(error),
+  };
   if control.cancelled.load(Ordering::Acquire) {
     let _ = socket.close(None);
     return Ok(());
   }
+  socket
+    .get_mut()
+    .set_nonblocking(false)
+    .map_err(|error| format!("failed to restore blocking WebSocket transport: {error}"))?;
   socket
     .get_mut()
     .set_read_timeout(Some(Duration::from_millis(50)))
@@ -768,6 +804,7 @@ pub unsafe extern "C" fn wss_each_calcit_ffi_async_v1(
 mod tests {
   use super::*;
   use calcit_native_ffi::CalcitFfiBuffer;
+  use std::io::{Read, Write};
   use std::net::TcpListener;
   use std::ptr;
   use std::sync::atomic::Ordering;
@@ -977,6 +1014,82 @@ mod tests {
     assert!(matches!(snapshot["send-outcomes"], Edn::Struct(ref value) if value.name.as_ref() == "WssSendMetrics"));
     assert!(matches!(snapshot["disconnect-reasons"], Edn::Struct(ref value) if value.name.as_ref() == "WssDisconnectMetrics"));
     assert!(wss_metrics(vec![Edn::Nil]).is_err());
+  }
+
+  #[test]
+  fn nonblocking_handshake_resumes_after_fragmented_upgrade_request() {
+    let _guard = TEST_LOCK.lock().expect("test lock");
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind fragmented-handshake listener");
+    let port = listener.local_addr().expect("fragmented-handshake address").port();
+    let (events, event_rx) = channel();
+    let control = Arc::new(ServerControl {
+      cancelled: AtomicBool::new(false),
+    });
+    let worker_control = Arc::clone(&control);
+    let (done_tx, done_rx) = sync_channel(1);
+    let worker = spawn(move || {
+      let (stream, _) = listener.accept().expect("accept fragmented handshake");
+      stream.set_nonblocking(true).expect("force nonblocking handshake transport");
+      let result = run_safe_client(stream, 8_001, events, worker_control);
+      done_tx.send(result).expect("report fragmented handshake result");
+    });
+
+    let mut client = TcpStream::connect(("127.0.0.1", port)).expect("connect fragmented-handshake client");
+    let request = b"GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n";
+    let split_at = request.len() - 6;
+    client.write_all(&request[..split_at]).expect("write first handshake fragment");
+    std::thread::sleep(Duration::from_millis(50));
+    client.write_all(&request[split_at..]).expect("write final handshake fragment");
+    client
+      .set_read_timeout(Some(Duration::from_secs(1)))
+      .expect("set handshake response timeout");
+    let mut response = [0_u8; 512];
+    let response_len = client.read(&mut response).expect("read WebSocket upgrade response");
+    assert!(
+      std::str::from_utf8(&response[..response_len])
+        .expect("WebSocket response is UTF-8")
+        .contains("101 Switching Protocols"),
+      "expected successful upgrade response"
+    );
+    assert!(matches!(
+      event_rx.recv_timeout(Duration::from_secs(1)),
+      Ok(SafeEvent::Connect(8_001, _))
+    ));
+
+    control.cancelled.store(true, Ordering::Release);
+    done_rx
+      .recv_timeout(Duration::from_secs(1))
+      .expect("fragmented-handshake worker must stop after cancellation")
+      .expect("fragmented-handshake cancellation must be clean");
+    worker.join().expect("fragmented-handshake worker join");
+  }
+
+  #[test]
+  fn cancellation_stops_pending_nonblocking_handshake_without_waiting_for_timeout() {
+    let _guard = TEST_LOCK.lock().expect("test lock");
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind pending-handshake listener");
+    let port = listener.local_addr().expect("pending-handshake address").port();
+    let (events, _event_rx) = channel();
+    let control = Arc::new(ServerControl {
+      cancelled: AtomicBool::new(false),
+    });
+    let worker_control = Arc::clone(&control);
+    let (done_tx, done_rx) = sync_channel(1);
+    let worker = spawn(move || {
+      let (stream, _) = listener.accept().expect("accept pending handshake");
+      stream.set_nonblocking(true).expect("force pending handshake transport nonblocking");
+      let result = run_safe_client(stream, 8_002, events, worker_control);
+      done_tx.send(result).expect("report pending handshake result");
+    });
+
+    let _client = TcpStream::connect(("127.0.0.1", port)).expect("connect pending-handshake client");
+    std::thread::sleep(Duration::from_millis(20));
+    control.cancelled.store(true, Ordering::Release);
+    done_rx
+      .recv_timeout(Duration::from_millis(500))
+      .expect("pending handshake must stop promptly after cancellation")
+      .expect("pending handshake cancellation must be clean");
+    worker.join().expect("pending-handshake worker join");
   }
 
   #[test]
