@@ -105,7 +105,9 @@
                 {} $ :port 9001
                 fn (income) (println income)
                   wss-each! $ fn (id)
-                    wss-send! id $ str "|hello from: " income
+                    do
+                      wss-send! id $ str "|hello from: " income
+                      , &unit
               println "|demo started"
           :examples $ []
           :schema $ :: 'Fn
