@@ -13,7 +13,9 @@ wss.core/wss-serve!
     println income
 
     wss.core/wss-each! $ fn (id)
-      wss.core/wss-send! id $ str "\"hello from: " income
+      do
+        wss.core/wss-send! id $ str "\"hello from: " income
+        , &unit
 ```
 
 `wss-serve!` returns a typed `FfiTask`. Stop the listener and all connection
@@ -80,9 +82,11 @@ Audit the versioned typed FFI contract without opening a socket:
 calcit calcit.cirru ffi export --json --ns wss.core
 ```
 
-该只读 inventory 会展示同步 send/metrics 边界，以及 `wss-serve!` 的 typed
-event、owned task 和 cooperative cancellation metadata；当前 v1 对 callback
-仍给出显式 unsupported diagnostic。
+该只读 inventory 会展示同步 send/metrics 边界，并把 `wss-serve!` 标记为
+`async + async-task-v1`。连接 worker、task ownership 和 cooperative cancellation
+都由本模块的手写 adapter 管理，不再要求 Calcit 调用方声明生命周期状态。
+Interface IR v2 对 callback、Map options 和 `FfiTask` 仍给出显式 unsupported
+diagnostic，生成器不得把这些类型静默擦除。
 
 普通 WebSocket 业务事件使用可取消背压：server 取消后最长 10ms 停止等待 host
 队列。队列持续饱和时默认最多等待 5 秒。清理 listener、连接 worker 与 client
