@@ -50,7 +50,7 @@
             defn wss-each! (cb)
               &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_each cb
           :examples $ []
-          :ffi $ {} (:backend :native) (:invoke :blocking-callback) (:kind :callback-iteration) (:symbol |wss_each) (:transport :blocking-host-v1)
+          :ffi $ {} (:backend :native) (:invoke :blocking-callback) (:symbol |wss_each) (:transport :blocking-host-v1)
           :schema $ :: 'Fn
             {} (:return 'Unit)
               :args $ []
@@ -60,7 +60,7 @@
           :code $ quote
             defn wss-metrics () $ &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_metrics
           :examples $ []
-          :ffi $ {} (:backend :native) (:invoke :sync) (:kind :dylib-method) (:symbol |wss_metrics) (:transport :edn-buffer-v1)
+          :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_metrics) (:transport :edn-buffer-v1)
           :schema $ :: 'Fn
             {} (:return 'wss.core/WssMetrics)
               :args $ []
@@ -76,7 +76,7 @@
                   (:closed) (%:: WssSendOutcome :closed)
                   _ $ raise (str |unexpected-wss-send-outcome: outcome)
           :examples $ []
-          :ffi $ {} (:backend :native) (:invoke :sync) (:kind :dylib-method) (:symbol |wss_send) (:transport :edn-buffer-v1)
+          :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_send) (:transport :edn-buffer-v1)
           :schema $ :: 'Fn
             {} (:return 'wss.core/WssSendOutcome)
               :args $ [] 'Number 'String
@@ -85,8 +85,7 @@
             defn wss-serve! (options cb)
               ffi:task $ &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
           :examples $ []
-          :ffi $ {} (:backend :native) (:invoke :async) (:kind :async-stream) (:symbol |wss_serve) (:transport :async-task-v1)
-            :stream $ {} (:callback-parameter 1) (:cancel :cooperative) (:event 'wss.core/WssEvent) (:task-result :own)
+          :ffi $ {} (:backend :native) (:invoke :async) (:symbol |wss_serve) (:transport :async-task-v1)
           :schema $ :: 'Fn
             {} (:return 'FfiTask)
               :args $ [] (:: 'Map 'Tag 'Number)
@@ -106,7 +105,9 @@
                 {} $ :port 9001
                 fn (income) (println income)
                   wss-each! $ fn (id)
-                    wss-send! id $ str "|hello from: " income
+                    do
+                      wss-send! id $ str "|hello from: " income
+                      , &unit
               println "|demo started"
           :examples $ []
           :schema $ :: 'Fn
