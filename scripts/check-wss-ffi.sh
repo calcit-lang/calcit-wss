@@ -20,7 +20,7 @@ trap cleanup EXIT
   wss.core :refer $ wss-serve! wss-each! wss-send! wss-metrics
 
 let
-    task-ref $ atom &unit
+    task-ref $ atom $ %none
     task $ wss-serve!
       {} (:port 19001)
       fn (event)
@@ -31,10 +31,14 @@ let
                 (:accepted)
                   do
                     println $ wss-metrics
-                    .cancel-with (deref task-ref) :smoke-complete
+                    let
+                        task-option $ assert-type (deref task-ref) $ :: '"'"'Option '"'"'FfiTask
+                      if (some? task-option)
+                        .cancel-with (option:unwrap task-option) :smoke-complete
+                        raise |missing-wss-task
                 _ $ raise |unexpected-send-outcome
           _ &unit
-  reset! task-ref task
+  reset! task-ref $ %some task
   , task' >"$smoke_log" 2>&1 &
 server_pid="$!"
 
