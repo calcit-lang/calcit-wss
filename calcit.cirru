@@ -3,13 +3,11 @@
   :about "|Machine-generated snapshot. Do not edit directly — changes will be overwritten. Use `calcit query` to inspect and `calcit edit`/`calcit tree` to modify. Run `calcit docs agents --contract` before mutations; use `--full` for first orientation or changed contract digest. Manual edits must follow format and schema conventions, then run `calcit edit format`."
   :package |wss
   :entries $ {}
-    :default $ {} (:description |) (:init-fn 'wss.test/main!) (:mode :native)
-      :reload-fn 'wss.test/reload!
+    :default $ {} (:description |) (:init-fn 'wss.test/main!) (:mode :native) (:reload-fn 'wss.test/reload!)
       :feature-policy $ {}
       :modules $ []
       :type-slots $ {}
-    :demo $ {} (:description |) (:init-fn 'wss.test/demo!) (:mode :native)
-      :reload-fn 'wss.test/reload!
+    :demo $ {} (:description |) (:init-fn 'wss.test/demo!) (:mode :native) (:reload-fn 'wss.test/reload!)
       :feature-policy $ {}
       :modules $ []
       :type-slots $ {}
@@ -21,12 +19,7 @@
           :examples $ []
           :schema $ :: 'StructDef
         'WssDisconnectMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct WssDisconnectMetrics (:peer-closed 'Number)
-            :server-cancelled 'Number
-            :local-close 'Number
-            :command-channel-closed 'Number
-            :read-failed 'Number
-            :write-failed 'Number
+          :code $ quote $ defstruct WssDisconnectMetrics (:peer-closed 'Number) (:server-cancelled 'Number) (:local-close 'Number) (:command-channel-closed 'Number) (:read-failed 'Number) (:write-failed 'Number)
           :examples $ []
           :schema $ :: 'StructDef
         'WssEvent $ %{} 'CodeEntry (:doc |)
@@ -52,14 +45,9 @@
         'wss-each! $ %{} 'CodeEntry
           :doc "|Iterate over a stable snapshot of connected clients. Args: callback (fn (client-id) -> Unit). Returns Unit after all queued callbacks complete."
           :code $ quote $ defn wss-each! (cb)
-            &call-dylib-edn-fn
-              get-dylib-path |/dylibs/libcalcit_wss
-              , |wss_each cb
+            &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_each cb
           :examples $ []
-          :ffi $ {} (:backend :native)
-            :invoke :blocking-callback
-            :symbol |wss_each
-            :transport :blocking-host-v1
+          :ffi $ {} (:backend :native) (:invoke :blocking-callback) (:symbol |wss_each) (:transport :blocking-host-v1)
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] $ :: 'Fn
               {} (:return 'Unit)
@@ -67,21 +55,16 @@
         'wss-metrics $ %{} 'CodeEntry
           :doc "|Return a typed process-lifetime metrics snapshot with live per-client queue depth, bytes, oldest age, send outcomes, and disconnect reasons."
           :code $ quote $ defn wss-metrics ()
-            &call-dylib-edn
-              get-dylib-path |/dylibs/libcalcit_wss
-              , |wss_metrics
+            &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_metrics
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_metrics) (:transport :edn-buffer-v1)
-          :schema $ :: 'Fn $ {}
-            :return 'wss.core/WssMetrics
+          :schema $ :: 'Fn $ {} (:return 'wss.core/WssMetrics)
             :args $ []
         'wss-send! $ %{} 'CodeEntry
           :doc "|Try to enqueue a text message for one WebSocket client. Returns WssSendOutcome; backpressured and too-large are normal flow-control results."
           :code $ quote $ defn wss-send! (client message)
             let
-                outcome $ &call-dylib-edn
-                  get-dylib-path |/dylibs/libcalcit_wss
-                  , |wss_send client message
+                outcome $ &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
               match outcome
                 (:accepted) (%:: WssSendOutcome :accepted)
                 (:backpressured) (%:: WssSendOutcome :backpressured)
@@ -90,15 +73,12 @@
                 _ $ raise $ str |unexpected-wss-send-outcome: outcome
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_send) (:transport :edn-buffer-v1)
-          :schema $ :: 'Fn $ {}
-            :return 'wss.core/WssSendOutcome
+          :schema $ :: 'Fn $ {} (:return 'wss.core/WssSendOutcome)
             :args $ [] 'Number 'String
         'wss-serve! $ %{} 'CodeEntry
           :doc "|Start a cancellable native WebSocket server. Args: options map and callback receiving connect/disconnect/message/blob events. Returns FfiTask; cancel it with .cancel or .cancel-with."
           :code $ quote $ defn wss-serve! (options cb)
-            ffi:task $ &call-dylib-edn-fn
-              get-dylib-path |/dylibs/libcalcit_wss
-              , |wss_serve options cb
+            ffi:task $ &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :async) (:symbol |wss_serve) (:transport :async-task-v1)
           :schema $ :: 'Fn $ {} (:return 'FfiTask)
@@ -131,15 +111,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
         'reload! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn reload! ()
-            println "|did nothing on reload"
+          :code $ quote $ defn reload! () (println "|did nothing on reload")
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
         'run-tests $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn run-tests ()
-            println "|%%%% test for lib"
-            println calcit-filename calcit-dirname
+          :code $ quote $ defn run-tests () (println "|%%%% test for lib") (println calcit-filename calcit-dirname)
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
