@@ -66,10 +66,10 @@
             let
                 outcome $ &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_send client message
               match outcome
-                (:accepted) (%:: WssSendOutcome :accepted)
-                (:backpressured) (%:: WssSendOutcome :backpressured)
-                (:too-large) (%:: WssSendOutcome :too-large)
-                (:closed) (%:: WssSendOutcome :closed)
+                (:accepted) (WssSendOutcome :accepted)
+                (:backpressured) (WssSendOutcome :backpressured)
+                (:too-large) (WssSendOutcome :too-large)
+                (:closed) (WssSendOutcome :closed)
                 _ $ raise $ str |unexpected-wss-send-outcome: outcome
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_send) (:transport :edn-buffer-v1)
@@ -81,7 +81,7 @@
             ffi:task $ &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :async) (:symbol |wss_serve) (:transport :async-task-v1)
-          :schema $ :: 'Fn $ {} (:return 'FfiTask)
+          :schema $ :: 'Fn $ {} (:return 'calcit.core/FfiTask)
             :args $ [] (:: 'Map 'Tag 'Number)
               :: 'Fn $ {} (:return 'Unit)
                 :args $ [] 'wss.core/WssEvent
@@ -98,9 +98,8 @@
               {} $ :port 9001
               fn (income) (println income)
                 wss-each! $ fn (id)
-                  do
-                    wss-send! id $ str "|hello from: " income
-                    , &unit
+                  wss-send! id $ str "|hello from: " income
+                  , &unit
             println "|demo started"
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
