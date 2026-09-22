@@ -13,5 +13,6 @@
 .calcit/
 
 /dylibs/
+/js-out/
 
 .DS_Store
