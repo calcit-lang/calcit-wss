@@ -8,10 +8,8 @@ currently 3 APIs are provided:
 
 ```cirru
 wss.core/wss-serve!
-  {} (:port 9000)
-  fn (income)
-    println income
-
+  {} $ :port 9000
+  fn (income) (println income)
     wss.core/wss-each! $ fn (id)
       do
         wss.core/wss-send! id $ str "\"hello from: " income
@@ -19,7 +17,7 @@ wss.core/wss-serve!
 ```
 
 `wss-serve!` returns a typed `FfiTask`. Stop the listener and all connection
-workers with `.cancel` or `.cancel-with`; terminal completion is emitted
+workers with `.cancel!` or `.cancel-with!`; terminal completion is emitted
 only after native resources are released. `wss-send!` accepts a non-negative
 safe-integer client id and a string message, then returns `(:accepted)`,
 `(:backpressured)`, `(:too-large)`, or `(:closed)`. These outcomes are normal
@@ -101,6 +99,17 @@ use the business cancellation predicate and relies on host-reserved capacity.
 Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file with `./build.sh`.
 
 ### Develop
+
+本仓库固定正式 Calcit 0.28.0、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+先执行 `caps --strict --ci`、`caps verify --toolchain`，再执行两个 native entry
+的 `--check-only`；`demo` 只做静态检查，不以启动长期监听器作为构建门禁。
+公开门禁覆盖全部四个命名空间（19 个定义），保留零债务 quality 门禁，
+不通过新增编译器改写规则或放宽 baseline 来迁移。
+原有 Rust 生命周期、背压测试与真实连接/发送/取消 smoke 继续由 CI 执行。
+这是 native 模块，没有前端部署资源，不新增 COS/CDN 配置。
+
+CI 使用正式版本 Actions 标签，不使用提交 hash 或 alpha。标签可移动的供应链
+风险仍然存在；只读权限和不保留 checkout 凭据并不等同于不可变版本。
 
 For task lifecycle, backpressure, metrics, and revision-aware resync guidance,
 use `calcit docs read "Bounded WebSocket servers" --module calcit-wss` after

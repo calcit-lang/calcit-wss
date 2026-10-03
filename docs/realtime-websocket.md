@@ -30,7 +30,7 @@ def server-task $ wss.core/wss-serve!
   fn (message)
     handle-message! message
 
-server-task.cancel-with :shutdown
+server-task.cancel-with! :shutdown
 ```
 
 Cancel only when the application can stop accepting work. Terminal completion means the listener, connection workers, and registry have been cleaned up.
