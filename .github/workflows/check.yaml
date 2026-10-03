@@ -7,25 +7,49 @@ on:
 
 name: Test
 
+permissions:
+  contents: read
+
 jobs:
   build_and_test:
-    name: Test
+    name: Calcit 0.28.0 validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
-      - uses: calcit-lang/setup-calcit@704b3f5cd6f9ce3bd1e0c926dbdd1d181adb8180 # v1.4.0
-
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: actions/checkout@v7.0.1
         with:
-          toolchain: nightly
-          components: clippy
+          persist-credentials: false
 
-      - run: cargo build --release
+      - uses: calcit-lang/setup-calcit@v1.5.0
+        with:
+          tools: calcit,caps
+          caps-version: 0.1.1
 
-      - run: cargo test -- --test-threads=1
+      - name: Validate Calcit snapshot and types
+        run: |
+          set -euo pipefail
+          caps --strict --ci
+          caps verify --toolchain
+          calcit calcit.cirru edit format
+          git diff --exit-code -- calcit.cirru
+          calcit calcit.cirru --check-only
+          calcit calcit.cirru --entry demo --check-only
+          calcit calcit.cirru analyze check-public --ns 'wss.$meta' --ns wss.core --ns wss.test --ns wss.util --format json
+          calcit calcit.cirru analyze quality --format json
 
-      - run: cargo clippy --all-targets -- -D warnings
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2.9.2
+
+      - run: cargo fmt --check
+
+      - run: cargo test --locked -- --test-threads=1
+
+      - run: cargo clippy --locked --all-targets -- -D warnings
+
+      - run: cargo build --locked --release
 
       - name: Verify C-safe exports only
         run: |
@@ -39,14 +63,6 @@ jobs:
           ! grep -Eq ' (abi_version|edn_version|wss_serve|wss_each|wss_send|wss_metrics)$' <<<"$exports"
 
       - run: mkdir -p dylibs/ && cp -v target/release/libcalcit_wss.so dylibs/
-
-      - run: caps --strict --ci
-
-      - run: calcit calcit.cirru edit format && git diff --exit-code -- calcit.cirru
-
-      - run: calcit calcit.cirru --check-only
-
-      - run: calcit calcit.cirru analyze quality --format json
 
       - run: calcit calcit.cirru
 
