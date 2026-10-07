@@ -43,15 +43,59 @@
           :examples $ []
           :schema $ :: 'EnumDef
         'wss-each! $ %{} 'CodeEntry
-          :doc "|Iterate over a stable snapshot of connected clients. Args: callback (fn (client-id) -> Unit). Returns Unit after all queued callbacks complete."
+          :doc "|遍历调用时已连接客户端的稳定快照。callback: Number -> Unit。实际 host 启动结果经运行时检查为 Unit 后返回；Unit 表示 one-shot 排队已启动，不表示回调已执行完成。回调随后通过 async-task-v1 host 队列执行，每个快照 id 一次；本迭代不提供取消句柄。"
           :code $ quote $ defn wss-each! (cb)
-            &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_each cb
+            decode-map-as
+              &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_each cb
+              , 'Unit
           :examples $ []
-          :ffi $ {} (:backend :native) (:invoke :blocking-callback) (:symbol |wss_each) (:transport :blocking-host-v1)
+          :ffi $ {} (:backend :native) (:invoke :async) (:symbol |wss_each) (:transport :async-task-v1)
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ [] $ :: 'Fn
               {} (:return 'Unit)
                 :args $ [] 'Number
+          :tests $ []
+            %{} 'TestEntry (:name |empty-client-unit)
+              :code $ quote $ assert= &unit
+                wss-each! $ fn (client-id)
+                  hint-fn $ {}
+                    :args $ [] 'Number
+                    :return 'Unit
+                  raise |unexpected-client-in-empty-snapshot
+              :tags $ #{} :ffi :native
+            %{} 'TestEntry (:name |checked-unit-preserves-value)
+              :code $ quote $ assert= &unit (decode-map-as &unit 'Unit)
+              :tags $ #{} :ffi :native
+            %{} 'TestEntry (:name |checked-unit-rejects-nil)
+              :code $ quote $ assert= true
+                try
+                  do (decode-map-as nil 'Unit) false
+                  fn (message)
+                    hint-fn $ {}
+                      :args $ [] 'String
+                      :return 'Bool
+                    .includes? message "|decode-map-as failed at $: expected &unit, got nil"
+              :tags $ #{} :ffi :native
+            %{} 'TestEntry (:name |checked-unit-rejects-number)
+              :code $ quote $ assert= true
+                try
+                  do (decode-map-as 1 'Unit) false
+                  fn (message)
+                    hint-fn $ {}
+                      :args $ [] 'String
+                      :return 'Bool
+                    .includes? message "|decode-map-as failed at $: expected &unit, got number"
+              :tags $ #{} :ffi :native
+            %{} 'TestEntry (:name |checked-unit-rejects-string)
+              :code $ quote $ assert= true
+                try
+                  do (decode-map-as |wrong 'Unit) false
+                  fn (message)
+                    hint-fn $ {}
+                      :args $ [] 'String
+                      :return 'Bool
+                    .includes? message "|decode-map-as failed at $: expected &unit"
+              :tags $ #{} :ffi :native
         'wss-metrics $ %{} 'CodeEntry
           :doc "|Return a typed process-lifetime metrics snapshot with live per-client queue depth, bytes, oldest age, send outcomes, and disconnect reasons."
           :code $ quote $ defn wss-metrics ()
@@ -128,7 +172,7 @@
       :defs $ {}
         'get-dylib-ext $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defmacro get-dylib-ext ()
-            case-default (&get-os) |.so (:macos |.dylib) (:windows |.dll)
+            match (&get-os) (:macos |.dylib) (:windows |.dll) (_ |.so)
           :examples $ []
           :schema $ :: 'Macro $ {}
             :capabilities $ #{} :platform-read

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build_and_test:
-    name: Calcit 0.28.0 validation
+    name: Calcit 0.29.0-alpha.15 validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -36,6 +36,23 @@ jobs:
           calcit calcit.cirru --entry demo --check-only
           calcit calcit.cirru analyze check-public --ns 'wss.$meta' --ns wss.core --ns wss.test --ns wss.util --format json
           calcit calcit.cirru analyze quality --format json
+          calcit calcit.cirru fix --rule concrete-return-proof-v1 --ns wss.core --def 'wss-each!' --format edn
+          calcit calcit.cirru fix --rule callable-contract-proof-v1 --ns wss.core --def 'wss-each!' --format edn
+
+      - name: Verify callback inventory stays explicitly unsupported
+        run: |
+          calcit calcit.cirru ffi export --json --ns wss.core > .calcit/wss-ffi.json
+          python3 - <<'PY'
+          import json
+          with open('.calcit/wss-ffi.json') as source:
+              interface = json.load(source)['data']['interface']
+          entry = next(x for x in interface['definitions'] if x['id'] == 'wss.core/wss-each!')
+          assert entry['lowering']['invoke'] == 'async'
+          assert entry['lowering']['transport'] == 'async-task-v1'
+          assert entry['status'] == 'unsupported'
+          assert 'E_FFI_IR_CALLBACK_TYPE' in entry['diagnostic_codes']
+          assert entry['signature'] is None
+          PY
 
       - uses: dtolnay/rust-toolchain@v1
         with:
@@ -65,6 +82,9 @@ jobs:
       - run: mkdir -p dylibs/ && cp -v target/release/libcalcit_wss.so dylibs/
 
       - run: calcit calcit.cirru
+
+      - name: Verify checked iteration boundary
+        run: calcit calcit.cirru test 'wss.core/wss-each!' --require-match
 
       - name: Verify WebSocket connect, send, and cancellation
         run: bash scripts/check-wss-ffi.sh
