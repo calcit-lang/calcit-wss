@@ -1,7 +1,7 @@
 use std::env;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use tungstenite::Message;
+use tungstenite::{Message, stream::MaybeTlsStream};
 
 fn main() -> Result<(), String> {
   let port = env::args()
@@ -10,6 +10,11 @@ fn main() -> Result<(), String> {
     .parse::<u16>()
     .map_err(|error| format!("invalid WebSocket smoke port: {error}"))?;
   let url = format!("ws://127.0.0.1:{port}");
+  let expect_close = match env::args().nth(2).as_deref() {
+    None => false,
+    Some("--expect-close") => true,
+    Some(other) => return Err(format!("unexpected smoke client argument: {other}")),
+  };
   let deadline = Instant::now() + Duration::from_secs(5);
   let (mut socket, _) = loop {
     match tungstenite::connect(url.as_str()) {
@@ -18,12 +23,24 @@ fn main() -> Result<(), String> {
       Err(error) => return Err(format!("failed to connect WebSocket smoke client: {error}")),
     }
   };
+  let MaybeTlsStream::Plain(stream) = socket.get_mut() else {
+    return Err("expected a plain loopback smoke connection".to_owned());
+  };
+  stream
+    .set_read_timeout(Some(Duration::from_secs(5)))
+    .map_err(|error| format!("failed to bound WebSocket smoke response: {error}"))?;
   socket
     .write_message(Message::Text("from-client".to_owned()))
     .map_err(|error| format!("failed to send WebSocket smoke message: {error}"))?;
   let response = socket
     .read_message()
     .map_err(|error| format!("failed to read WebSocket smoke response: {error}"))?;
+  if expect_close {
+    return match response {
+      Message::Close(_) => Ok(()),
+      other => Err(format!("expected cancellation close, got {other:?}")),
+    };
+  }
   if response != Message::Text("from-calcit".to_owned()) {
     return Err(format!("unexpected WebSocket smoke response: {response:?}"));
   }

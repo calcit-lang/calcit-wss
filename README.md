@@ -30,6 +30,13 @@ process-lifetime send outcomes and disconnect reasons.
 累计字节数和最老消息等待时间，以及进程生命周期内累计的 send outcome 与断开原因。
 该接口用于诊断和模板层策略，不会改变、合并或消费业务队列。
 
+`wss-each!` 接收 `Number -> Unit` 回调，遍历调用时的稳定客户端快照。
+它使用不可取消的 one-shot `async-task-v1` ABI；返回的 Unit 只表示原生启动成功，
+不表示回调已经完成。模块用 `decode-map-as` 检查真实 host 返回值，保留 Unit，
+并拒绝 nil、Number 等错误结果，而不是丢弃返回值后补一个 Unit。
+回调随后通过 host 队列执行，每个快照 id 一次；异常仍由原异步错误路径报告。
+不要依赖回调在 `wss-each!` 返回前执行，也不要把其返回值当作可取消 Task。
+
 每个连接的 outbound 业务队列按消息数和累计字节数双重限制（当前分别为 64 条、
 1 MiB，单消息上限 256 KiB）。队列满时模块不会丢弃或合并 patch，而是返回
 `(:backpressured)`，供上层基于 acknowledged revision 重新计算；取消和 close
@@ -81,9 +88,10 @@ calcit calcit.cirru ffi export --json --ns wss.core
 ```
 
 该只读 inventory 会展示同步 send/metrics 边界，并把 `wss-serve!` 标记为
-`async + async-task-v1`。连接 worker、task ownership 和 cooperative cancellation
+`async + async-task-v1`；`wss-each!` 同样使用这个异步协议，但没有取消句柄。
+连接 worker、task ownership 和 cooperative cancellation
 都由本模块的手写 adapter 管理，不再要求 Calcit 调用方声明生命周期状态。
-Interface IR v2 对 callback、Map options 和 `FfiTask` 仍给出显式 unsupported
+Interface IR v3 对 callback、Map options 和 `FfiTask` 仍给出显式 unsupported
 diagnostic，生成器不得把这些类型静默擦除。
 
 普通 WebSocket 业务事件使用可取消背压：server 取消后最长 10ms 停止等待 host
@@ -100,15 +108,20 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
-本仓库固定正式 Calcit 0.28.0、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+本仓库固定已发布 Calcit 0.29.0-alpha.15、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+Calcit 是预发布版，不宣称本次迁移已经完成所有消费者的严格验证。
 先执行 `caps --strict --ci`、`caps verify --toolchain`，再执行两个 native entry
 的 `--check-only`；`demo` 只做静态检查，不以启动长期监听器作为构建门禁。
 公开门禁覆盖全部四个命名空间（19 个定义），保留零债务 quality 门禁，
 不通过新增编译器改写规则或放宽 baseline 来迁移。
 原有 Rust 生命周期、背压测试与真实连接/发送/取消 smoke 继续由 CI 执行。
+`wss-each!` 的 definition `:tests` 覆盖空客户端和 checked Unit 正反例，
+CI 在复制真实 dylib 后执行 `calcit test 'wss.core/wss-each!' --require-match`。
+真实 WebSocket smoke 另验证非空客户端 id、一次回调及实际启动结果为 Unit，
+拒绝参数或返回类型错误的回调，并验证回调抛错后仍报告错误且能取消、关闭连接。
 这是 native 模块，没有前端部署资源，不新增 COS/CDN 配置。
 
-CI 使用正式版本 Actions 标签，不使用提交 hash 或 alpha。标签可移动的供应链
+CI 的 Actions 使用正式标签；Calcit 工具链独立固定上述 alpha 版本。标签可移动的供应链
 风险仍然存在；只读权限和不保留 checkout 凭据并不等同于不可变版本。
 
 For task lifecycle, backpressure, metrics, and revision-aware resync guidance,
