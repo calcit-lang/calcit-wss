@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build_and_test:
-    name: Calcit 0.29.0-alpha.15 validation
+    name: Calcit 0.29.0-alpha.19 validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
