@@ -47,8 +47,8 @@ grep -q 'wss_each_calcit_ffi_v1' "$smoke_dir/wrong-abi.log"
   wss.core :refer $ wss-serve! wss-each! wss-send! wss-metrics
 
 let
-    task-ref $ atom $ assert-type (Option :none) $ :: '"'"'Option '"'"'FfiTask
-    each-count $ atom 0
+    task-ref $ ref $ assert-type (Option :none) $ :: '"'"'Option '"'"'FfiTask
+    each-count $ ref 0
     task $ wss-serve!
       {} (:port 19001)
       fn (event)
@@ -138,7 +138,7 @@ smoke_log="$smoke_dir/calcit-wss-callback-error.log"
 "$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
   wss.core :refer $ wss-serve! wss-each!
 let
-    task-ref $ atom $ assert-type (Option :none) $ :: '"'"'Option '"'"'FfiTask
+    task-ref $ ref $ assert-type (Option :none) $ :: '"'"'Option '"'"'FfiTask
     task $ wss-serve!
       {} (:port 19002)
       fn (event)
