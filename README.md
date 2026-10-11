@@ -108,20 +108,23 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
-本仓库固定已发布 Calcit 0.29.0-alpha.15、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
-Calcit 是预发布版，不宣称本次迁移已经完成所有消费者的严格验证。
+本仓库源码固定正式 Calcit 0.29.0、WSS 0.2.34、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+模块自身的验证不代表所有消费者都已完成严格迁移。
 先执行 `caps --strict --ci`、`caps verify --toolchain`，再执行两个 native entry
 的 `--check-only`；`demo` 只做静态检查，不以启动长期监听器作为构建门禁。
-公开门禁覆盖全部四个命名空间（19 个定义），保留零债务 quality 门禁，
-不通过新增编译器改写规则或放宽 baseline 来迁移。
+公开门禁覆盖全部四个命名空间（19 个定义），保留默认严格类型检查，
+使用当前 weak-types 视图报告类型覆盖和债务。旧 quality 门禁通过后退役；
+CI 不再预览 proof/fix 规则，也不通过新增改写规则或放宽 baseline 来迁移。
 原有 Rust 生命周期、背压测试与真实连接/发送/取消 smoke 继续由 CI 执行。
 `wss-each!` 的 definition `:tests` 覆盖空客户端和 checked Unit 正反例，
 CI 在复制真实 dylib 后执行 `calcit test 'wss.core/wss-each!' --require-match`。
 真实 WebSocket smoke 另验证非空客户端 id、一次回调及实际启动结果为 Unit，
 拒绝参数或返回类型错误的回调，并验证回调抛错后仍报告错误且能取消、关闭连接。
+故意抛错场景要求正式 0.29 的 host 退出 1 并报告对应 callback error；
+正常连接场景仍要求退出 0，不把异步失败吞掉。
 这是 native 模块，没有前端部署资源，不新增 COS/CDN 配置。
 
-CI 的 Actions 使用正式标签；Calcit 工具链独立固定上述 alpha 版本。标签可移动的供应链
+CI 的 Actions 使用正式标签；Calcit 工具链独立固定上述正式版本。标签可移动的供应链
 风险仍然存在；只读权限和不保留 checkout 凭据并不等同于不可变版本。
 
 For task lifecycle, backpressure, metrics, and revision-aware resync guidance,

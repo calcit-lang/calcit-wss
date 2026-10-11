@@ -184,9 +184,12 @@ if kill -0 "$server_pid" 2>/dev/null; then
   echo "Callback error smoke did not release the server" >&2
   exit 1
 fi
-if ! wait "$server_pid"; then
+# Calcit 0.29 propagates this deliberate async callback failure to exit 1.
+callback_status=0
+wait "$server_pid" || callback_status=$?
+if [[ "$callback_status" -ne 1 ]]; then
   cat "$smoke_log"
-  echo "Callback error smoke host exited unsuccessfully" >&2
+  echo "Callback error smoke expected exit 1, got $callback_status" >&2
   exit 1
 fi
 server_pid=""
