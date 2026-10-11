@@ -12,6 +12,6 @@ calcit docs agents --full
 `calcit_native_ffi`；本仓库只维护 WebSocket 生命周期与薄兼容层。
 
 提交前运行 `cargo fmt --check`、`cargo test`、
-`cargo clippy --all-targets -- -D warnings`、deps.cirru 所声明 Calcit 版本的 check/quality
+`cargo clippy --all-targets -- -D warnings`、deps.cirru 所声明 Calcit 版本的严格 check/weak-types
 门禁，以及 `bash scripts/check-wss-ffi.sh` 的真实
 WebSocket connect/message/send/cancel smoke。

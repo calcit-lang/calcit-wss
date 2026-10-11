@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build_and_test:
-    name: Calcit 0.29.0-alpha.19 validation
+    name: Calcit 0.29.0 validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -34,25 +34,18 @@ jobs:
           git diff --exit-code -- calcit.cirru
           calcit calcit.cirru --check-only
           calcit calcit.cirru --entry demo --check-only
-          calcit calcit.cirru analyze check-public --ns 'wss.$meta' --ns wss.core --ns wss.test --ns wss.util --format json
-          calcit calcit.cirru analyze quality --format json
-          calcit calcit.cirru fix --rule concrete-return-proof-v1 --ns wss.core --def 'wss-each!' --format edn
-          calcit calcit.cirru fix --rule callable-contract-proof-v1 --ns wss.core --def 'wss-each!' --format edn
+          calcit calcit.cirru --check-only --ns 'wss.$meta' --ns wss.core --ns wss.test --ns wss.util --format edn
+          calcit calcit.cirru analyze weak-types --only coverage --summary-only --format json
+          calcit calcit.cirru analyze weak-types --only schema-dynamic,code-dynamic --intent unresolved --summary-only --format json
+          calcit calcit.cirru analyze weak-types --only deprecated-call --summary-only --format json
 
       - name: Verify callback inventory stays explicitly unsupported
         run: |
           calcit calcit.cirru ffi export --json --ns wss.core > .calcit/wss-ffi.json
-          python3 - <<'PY'
-          import json
-          with open('.calcit/wss-ffi.json') as source:
-              interface = json.load(source)['data']['interface']
-          entry = next(x for x in interface['definitions'] if x['id'] == 'wss.core/wss-each!')
-          assert entry['lowering']['invoke'] == 'async'
-          assert entry['lowering']['transport'] == 'async-task-v1'
-          assert entry['status'] == 'unsupported'
-          assert 'E_FFI_IR_CALLBACK_TYPE' in entry['diagnostic_codes']
-          assert entry['signature'] is None
-          PY
+          jq -e '.data.interface.definitions[] | select(.id == "wss.core/wss-each!") |
+            .lowering.invoke == "async" and .lowering.transport == "async-task-v1" and
+            .status == "unsupported" and (.diagnostic_codes | index("E_FFI_IR_CALLBACK_TYPE") != null) and
+            .signature == null' .calcit/wss-ffi.json
 
       - uses: dtolnay/rust-toolchain@v1
         with:
