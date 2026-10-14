@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build_and_test:
-    name: Calcit 0.29.0 validation
+    name: Calcit 0.29.3 validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -41,7 +41,7 @@ jobs:
 
       - name: Verify callback inventory stays explicitly unsupported
         run: |
-          calcit calcit.cirru ffi export --json --ns wss.core > .calcit/wss-ffi.json
+          calcit calcit.cirru ffi export --format json --ns wss.core > .calcit/wss-ffi.json
           jq -e '.data.interface.definitions[] | select(.id == "wss.core/wss-each!") |
             .lowering.invoke == "async" and .lowering.transport == "async-task-v1" and
             .status == "unsupported" and (.diagnostic_codes | index("E_FFI_IR_CALLBACK_TYPE") != null) and

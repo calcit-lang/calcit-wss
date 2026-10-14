@@ -99,7 +99,9 @@
         'wss-metrics $ %{} 'CodeEntry
           :doc "|Return a typed process-lifetime metrics snapshot with live per-client queue depth, bytes, oldest age, send outcomes, and disconnect reasons."
           :code $ quote $ defn wss-metrics ()
-            &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_metrics
+            parse-cirru-edn-as
+              format-cirru-edn $ &call-dylib-edn (get-dylib-path |/dylibs/libcalcit_wss) |wss_metrics
+              , 'WssMetrics
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_metrics) (:transport :edn-buffer-v1)
           :schema $ :: 'Fn $ {} (:return 'wss.core/WssMetrics)
@@ -145,6 +147,7 @@
                   wss-send! id $ str "|hello from: " income
                   , &unit
             println "|demo started"
+            , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
@@ -154,12 +157,12 @@
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
         'reload! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn reload! () (println "|did nothing on reload")
+          :code $ quote $ defn reload! () (println "|did nothing on reload") &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
         'run-tests $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn run-tests () (println "|%%%% test for lib") (println calcit-filename calcit-dirname)
+          :code $ quote $ defn run-tests () (println "|%%%% test for lib") (println calcit-filename calcit-dirname) &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
