@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "calcit_wss"
-version = "0.2.35"
+version = "0.2.36"
 dependencies = [
  "calcit_native_ffi",
  "cirru_edn",

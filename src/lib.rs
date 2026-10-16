@@ -7,7 +7,7 @@ use cirru_edn::{Edn, EdnStructView};
 use ffi::*;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::ErrorKind;
-use std::net::{TcpListener, TcpStream};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{Sender, SyncSender, TryRecvError, TrySendError, channel, sync_channel};
@@ -266,6 +266,21 @@ fn parse_server_port(args: &[Edn]) -> Result<u16, String> {
     Some(Edn::Nil) | None => Ok(9001),
     Some(value) => Err(format!("invalid WebSocket server options: {value}")),
   }
+}
+
+fn parse_server_address(args: &[Edn]) -> Result<SocketAddr, String> {
+  if args.len() > 2 {
+    return Err(format!("WebSocket server expects at most 2 arguments, got {}", args.len()));
+  }
+  let port = parse_server_port(&args[..args.len().min(1)])?;
+  let ip = match args.get(1) {
+    None => IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+    Some(Edn::Str(address)) => address
+      .parse::<IpAddr>()
+      .map_err(|_| "invalid WebSocket bind address: expected an IPv4 or IPv6 literal".to_owned())?,
+    Some(_) => return Err("invalid WebSocket bind address: expected a String".to_owned()),
+  };
+  Ok(SocketAddr::new(ip, port))
 }
 
 fn allocate_client_id() -> Result<u64, String> {
@@ -559,19 +574,21 @@ fn cleanup_safe_clients(owned_clients: &HashSet<u64>) {
 }
 
 fn run_safe_server(
-  port: u16,
+  address: SocketAddr,
   host: CalcitFfiAsyncHostV1,
   task: CalcitFfiAsyncTaskV1,
   control: Arc<ServerControl>,
 ) -> Result<(), String> {
-  let listener = TcpListener::bind(("0.0.0.0", port)).map_err(|error| format!("failed to listen on WebSocket port {port}: {error}"))?;
+  let port = address.port();
+  let listener =
+    TcpListener::bind(address).map_err(|error| format!("failed to listen on WebSocket port {port} ({address}): {error}"))?;
   listener
     .set_nonblocking(true)
     .map_err(|error| format!("failed to configure WebSocket listener: {error}"))?;
   let (event_tx, event_rx) = channel();
   let mut client_threads: Vec<JoinHandle<()>> = vec![];
   let mut owned_clients = HashSet::new();
-  println!("WebSocket server started at port {port}");
+  println!("WebSocket server started at port {port} ({})", address.ip());
 
   let server_result = (|| -> Result<(), String> {
     while !control.cancelled.load(Ordering::Acquire) {
@@ -641,8 +658,8 @@ unsafe fn start_wss_server_async_v1(
     Ok(args) => args,
     Err(_) => return ASYNC_STATUS_INVALID_PAYLOAD,
   };
-  let port = match parse_server_port(&args) {
-    Ok(port) => port,
+  let address = match parse_server_address(&args) {
+    Ok(address) => address,
     Err(_) => return ASYNC_STATUS_INVALID_PAYLOAD,
   };
   let (task_context, control) = match register_server_control() {
@@ -664,7 +681,7 @@ unsafe fn start_wss_server_async_v1(
     return status;
   }
   let spawn_result = Builder::new().name("calcit-wss-server".to_owned()).spawn(move || {
-    let outcome = catch_unwind(AssertUnwindSafe(|| run_safe_server(port, host, task, control)));
+    let outcome = catch_unwind(AssertUnwindSafe(|| run_safe_server(address, host, task, control)));
     let (kind, payload) = match outcome {
       Ok(Ok(())) => (ASYNC_EVENT_COMPLETE, b"&unit".to_vec()),
       Ok(Err(error)) => (ASYNC_EVENT_FAIL, encode_failure(error)),
@@ -884,12 +901,12 @@ mod tests {
 
   #[test]
   fn listener_start_failure_is_returned_without_panicking() {
-    let listener = TcpListener::bind("0.0.0.0:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
     let control = Arc::new(ServerControl {
       cancelled: AtomicBool::new(false),
     });
-    let error = run_safe_server(port, test_host(), test_task(), control).expect_err("occupied port must fail");
+    let error = run_safe_server(address, test_host(), test_task(), control).expect_err("occupied port must fail");
 
     assert!(error.contains("failed to listen on WebSocket port"), "error: {error}");
   }
@@ -929,6 +946,53 @@ mod tests {
       parse_server_port(&[Edn::Nil, Edn::Nil]).is_err(),
       "extra arguments must be rejected"
     );
+  }
+
+  #[test]
+  fn server_address_preserves_defaults_and_supports_ip_literals() {
+    let default: SocketAddr = "0.0.0.0:9001".parse().unwrap();
+    assert_eq!(parse_server_address(&[]).unwrap(), default);
+    assert_eq!(parse_server_address(&[Edn::Nil]).unwrap(), default);
+    assert_eq!(parse_server_address(&[Edn::map_from_iter([])]).unwrap(), default);
+    let options = Edn::map_from_iter([(Edn::tag("port"), Edn::Number(19001.0))]);
+    assert_eq!(
+      parse_server_address(std::slice::from_ref(&options)).unwrap(),
+      "0.0.0.0:19001".parse().unwrap()
+    );
+    for (literal, expected) in [("127.0.0.1", "127.0.0.1:19001"), ("::1", "[::1]:19001")] {
+      assert_eq!(
+        parse_server_address(&[options.clone(), Edn::str(literal)]).unwrap(),
+        expected.parse().unwrap()
+      );
+    }
+  }
+
+  #[test]
+  fn server_address_rejects_invalid_inputs_before_binding() {
+    let options = Edn::map_from_iter([]);
+    for value in [Edn::Nil, Edn::Number(1.0), Edn::Bool(false)] {
+      assert!(parse_server_address(&[options.clone(), value]).is_err());
+    }
+    for address in [
+      "",
+      "localhost",
+      "127.0.0.1:9001",
+      "ws://127.0.0.1",
+      "[::1]",
+      "999.0.0.1",
+      " 127.0.0.1",
+    ] {
+      assert!(
+        parse_server_address(&[options.clone(), Edn::str(address)]).is_err(),
+        "address {address:?}"
+      );
+    }
+    assert!(parse_server_address(&[options, Edn::str("127.0.0.1"), Edn::str("::1")]).is_err());
+    for port in [-1.0, 0.0, 80.5, 65_536.0] {
+      let options = Edn::map_from_iter([(Edn::tag("port"), Edn::Number(port))]);
+      assert!(parse_server_address(&[options, Edn::str("127.0.0.1")]).is_err());
+    }
+    assert!(parse_server_address(&[Edn::str("invalid-options"), Edn::str("127.0.0.1")]).is_err());
   }
 
   #[test]
@@ -1126,7 +1190,12 @@ mod tests {
       cancelled: AtomicBool::new(false),
     });
     let server_control = Arc::clone(&control);
-    let server = spawn(move || run_safe_server(port, test_host(), test_task(), server_control));
+    let address = parse_server_address(&[
+      Edn::map_from_iter([(Edn::tag("port"), Edn::Number(port as f64))]),
+      Edn::str("127.0.0.1"),
+    ])
+    .expect("parse loopback server address");
+    let server = spawn(move || run_safe_server(address, test_host(), test_task(), server_control));
 
     let url = format!("ws://127.0.0.1:{port}");
     let deadline = Instant::now() + Duration::from_secs(2);

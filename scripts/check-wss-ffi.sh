@@ -43,6 +43,14 @@ if "$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
 fi
 grep -q 'wss_each_calcit_ffi_v1' "$smoke_dir/wrong-abi.log"
 
+if "$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
+  wss.core :refer $ wss-serve!
+wss-serve! ({}) (fn (event) &unit) 7' >"$smoke_dir/wrong-bind-type.log" 2>&1; then
+  echo "Calcit accepted a non-String bind address" >&2
+  exit 1
+fi
+grep -q 'W_FN_ARG_TYPE_MISMATCH' "$smoke_dir/wrong-bind-type.log"
+
 "$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
   wss.core :refer $ wss-serve! wss-each! wss-send! wss-metrics
 
@@ -74,13 +82,14 @@ let
               println |checked-each-start-before-callback
               , &unit
           _ &unit
+      , |127.0.0.1
   reset! task-ref $ Option :some task
   , task' >"$smoke_log" 2>&1 &
 server_pid="$!"
 
 server_ready=""
 for _ in {1..100}; do
-  if grep -q 'WebSocket server started at port 19001' "$smoke_log"; then
+  if grep -q 'WebSocket server started at port 19001 (127.0.0.1)' "$smoke_log"; then
     server_ready=1
     break
   fi
@@ -149,13 +158,14 @@ let
               .cancel-with! ((deref task-ref) .unwrap) :callback-error-smoke
               raise |checked-each-callback-error
           _ &unit
+      , |127.0.0.1
   reset! task-ref $ Option :some task
   , task' >"$smoke_log" 2>&1 &
 server_pid="$!"
 
 server_ready=""
 for _ in {1..100}; do
-  if grep -q 'WebSocket server started at port 19002' "$smoke_log"; then
+  if grep -q 'WebSocket server started at port 19002 (127.0.0.1)' "$smoke_log"; then
     server_ready=1
     break
   fi

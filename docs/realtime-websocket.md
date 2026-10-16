@@ -35,6 +35,17 @@ server-task.cancel-with! :shutdown
 
 Cancel only when the application can stop accepting work. Terminal completion means the listener, connection workers, and registry have been cleaned up.
 
+本地监听可在既有 options 和 callback 后传入一个 String IP 字面量：
+
+```cirru.no-check
+wss.core/wss-serve! ({} (:port 9000)) handle-message! |127.0.0.1
+```
+
+省略地址仍监听 `0.0.0.0`，省略端口仍使用 `9001`；这不是本机隔离默认值。
+可传入 IPv4 或 IPv6（例如 `|::1`），不解析主机名、URL 或附带端口的文本；
+端口只在原 `Map<Tag,Number>` 中设置，地址是独立的 String，不需要 Dynamic 选项。
+只允许一个地址，多余参数与无效地址在启动监听之前失败。事件、背压和取消清理不变。
+
 The public FFI metadata records only the stable call boundary: native backend,
 base symbol, async invocation, and `async-task-v1` transport. The handwritten
 adapter owns event delivery, task ownership, worker cleanup, and cooperative

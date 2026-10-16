@@ -80,5 +80,8 @@ jobs:
       - name: Verify checked iteration boundary
         run: calcit calcit.cirru test 'wss.core/wss-each!' --require-match
 
+      - name: Verify bind-address rejection without a listener
+        run: calcit calcit.cirru test 'wss.core/wss-serve!' --require-match
+
       - name: Verify WebSocket connect, send, and cancellation
         run: bash scripts/check-wss-ffi.sh

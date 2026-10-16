@@ -122,15 +122,48 @@
           :schema $ :: 'Fn $ {} (:return 'wss.core/WssSendOutcome)
             :args $ [] 'Number 'String
         'wss-serve! $ %{} 'CodeEntry
-          :doc "|Start a cancellable native WebSocket server. Args: options map and callback receiving connect/disconnect/message/blob events. Returns FfiTask; cancel it with .cancel or .cancel-with."
-          :code $ quote $ defn wss-serve! (options cb)
-            ffi:task $ &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
+          :doc "|启动可取消的原生 WebSocket 服务；参数为 Map<Tag,Number> 选项、WssEvent -> Unit 回调，以及可省略的一个 String IP 地址。省略地址仍监听 0.0.0.0，端口默认 9001；显式使用 127.0.0.1 可限制为本机。仅接受 IPv4/IPv6 字面量，不解析域名、URL 或带端口文本。返回 FfiTask；通过 .cancel! / .cancel-with! 停止并清理连接。"
+          :code $ quote $ defn wss-serve! (options cb & bind-addresses)
+            if
+              > (.len bind-addresses) 1
+              raise |Expected-at-most-one-WebSocket-bind-address
+              , &unit
+            match (first bind-addresses)
+              (:none)
+                ffi:task $ &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options cb
+              (:some address)
+                ffi:task $ &call-dylib-edn-fn (get-dylib-path |/dylibs/libcalcit_wss) |wss_serve options address cb
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :async) (:symbol |wss_serve) (:transport :async-task-v1)
-          :schema $ :: 'Fn $ {} (:return 'calcit.core/FfiTask)
+          :schema $ :: 'Fn $ {} (:rest 'String) (:return 'calcit.core/FfiTask)
             :args $ [] (:: 'Map 'Tag 'Number)
               :: 'Fn $ {} (:return 'Unit)
                 :args $ [] 'wss.core/WssEvent
+          :tests $ []
+            %{} 'TestEntry (:name |rejects-extra-bind-addresses)
+              :code $ quote $ assert= true
+                try
+                  do
+                    wss-serve! ({})
+                      fn (event) &unit
+                      , |127.0.0.1 |::1
+                    , false
+                  fn (message) (= message |Expected-at-most-one-WebSocket-bind-address)
+              :tags $ #{} :bind-address :native
+            %{} 'TestEntry (:name |rejects-non-ip-bind-address-before-listening)
+              :code $ quote $ let
+                  rejects? $ fn (address)
+                    try
+                      do
+                        wss-serve! ({})
+                          fn (event) &unit
+                          , address
+                        , false
+                      fn (message)
+                        and (.includes? message |wss_serve_calcit_ffi_async_v1) (ends-with? message "|failed to start with status 8")
+                assert= true $ rejects? |localhost
+                assert= true $ rejects? |127.0.0.1:9001
+              :tags $ #{} :bind-address :native
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns wss.core
           :require

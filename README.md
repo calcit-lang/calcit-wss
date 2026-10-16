@@ -26,6 +26,21 @@ of currently connected client ids. `wss-metrics` returns a typed `WssMetrics`
 snapshot containing live per-client queue depth/bytes/oldest age plus cumulative
 process-lifetime send outcomes and disconnect reasons.
 
+### 选择监听地址
+
+`wss-serve!` 保留原来的两个参数：`Map<Tag,Number>` 选项与 `WssEvent -> Unit`
+回调；可在后面增加一个 String IP 地址，不需要扩大 options 的类型：
+
+```cirru.no-check
+wss.core/wss-serve! ({} (:port 9000)) on-message! |127.0.0.1
+```
+
+显式 `127.0.0.1` 只监听本机 IPv4；IPv6 可使用 `|::1`，由操作系统决定是否可用。
+地址仅接受 IP 字面量，不能包含端口、URL 或主机名；端口仍由 `:port` 指定。
+地址省略时保持原来的 `0.0.0.0`，端口省略时仍为 `9001`。多余地址及非法地址会被拒绝，
+不启动监听器；非 String 地址由类型检查拒绝。异步事件、发送、背压与取消清理顺序不变。
+本地测试和验收应显式使用 loopback，不能把默认监听地址当作本机隔离保证。
+
 `wss-metrics` 返回类型化的 `WssMetrics` 快照：其中包含当前每个连接的队列深度、
 累计字节数和最老消息等待时间，以及进程生命周期内累计的 send outcome 与断开原因。
 该接口用于诊断和模板层策略，不会改变、合并或消费业务队列。
@@ -108,13 +123,14 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
-使用者影响：本轮将工具链同步到正式 Calcit 0.30.0，不修改 Snapshot、Rust、Cargo 依赖/lock、WSS 0.2.35 或既有协议，不发版或部署。0.30.1 尚无正式版，不引入 alpha/hash。连接、发送、背压、取消顺序和 `wss-each!` 的受检 Unit 启动结果保持不变。
+工具链使用正式 Calcit 0.30.0；新增监听地址不要求切换 Calcit alpha。连接、发送、背压、
+取消顺序和 `wss-each!` 的受检 Unit 启动结果保持不变，不涉及业务部署。
 
 `wss-metrics` 在真实 native 返回处递归检查 `WssMetrics` 及其嵌套字段；原生返回不符合既有契约时立即报错，不只依赖返回类型声明。三个 demo/测试副作用函数在原有操作后实际返回声明的 Unit。
 
 现有 native 协议返回 Struct，而 `decode-map-as` 不接受 Struct。指标边界保留协议，使用 `format-cirru-edn` 与 `parse-cirru-edn-as` 做具名递归解码，因此每次诊断快照增加一次序列化/解析成本；未在消息发送热路径加入这项操作。
 
-本仓库源码固定正式 Calcit 0.30.0、WSS 0.2.35、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+本仓库源码固定正式 Calcit 0.30.0、WSS 0.2.36、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
 模块自身的验证不代表所有消费者都已完成严格迁移。
 先执行 `caps --strict --ci`、`caps verify --toolchain`，再执行两个 native entry
 的 `--check-only`；`demo` 只做静态检查，不以启动长期监听器作为构建门禁。
@@ -130,7 +146,8 @@ CI 在复制真实 dylib 后执行 `calcit test 'wss.core/wss-each!' --require-m
 正常连接场景仍要求退出 0，不把异步失败吞掉。
 这是 native 模块，没有前端部署资源，不新增 COS/CDN 配置。
 
-The toolchain is pinned to released Calcit 0.30.0. This update changes only toolchain metadata, CI version selection and documentation; the Snapshot, Rust, Cargo dependencies/lock, module version and existing regression scripts are unchanged. Native metrics retain their nested checked contract and WebSocket lifecycle semantics are unchanged. No release or deployment is included; this is not a claim that downstream applications have all migrated.
+本模块通过自身门禁不表示下游应用已完成迁移或部署；消费者仍需安装明确的正式模块版本，
+使用匹配的 CLI/runtime 重跑严格检查与真实业务验收。
 
 CI 的 Actions 使用正式标签；Calcit 工具链独立固定上述正式版本。标签可移动的供应链
 风险仍然存在；只读权限和不保留 checkout 凭据并不等同于不可变版本。
