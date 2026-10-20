@@ -32,7 +32,9 @@ process-lifetime send outcomes and disconnect reasons.
 回调；可在后面增加一个 String IP 地址，不需要扩大 options 的类型：
 
 ```cirru.no-check
-wss.core/wss-serve! ({} (:port 9000)) on-message! |127.0.0.1
+wss.core/wss-serve!
+  {} $ :port 9000
+  , on-message! |127.0.0.1
 ```
 
 显式 `127.0.0.1` 只监听本机 IPv4；IPv6 可使用 `|::1`，由操作系统决定是否可用。
@@ -123,14 +125,17 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
-工具链使用正式 Calcit 0.30.0；新增监听地址不要求切换 Calcit alpha。连接、发送、背压、
+本轮工具链使用 Calcit 0.30.1-alpha.5；监听地址能力不依赖本轮升级。连接、发送、背压、
 取消顺序和 `wss-each!` 的受检 Unit 启动结果保持不变，不涉及业务部署。
 
 `wss-metrics` 在真实 native 返回处递归检查 `WssMetrics` 及其嵌套字段；原生返回不符合既有契约时立即报错，不只依赖返回类型声明。三个 demo/测试副作用函数在原有操作后实际返回声明的 Unit。
 
 现有 native 协议返回 Struct，而 `decode-map-as` 不接受 Struct。指标边界保留协议，使用 `format-cirru-edn` 与 `parse-cirru-edn-as` 做具名递归解码，因此每次诊断快照增加一次序列化/解析成本；未在消息发送热路径加入这项操作。
 
-本仓库源码固定正式 Calcit 0.30.0、WSS 0.2.36、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+本仓库源码固定 Calcit 0.30.1-alpha.5、WSS 0.2.36、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+正式 0.30.1 的跨平台 CLI/npm 配对发布尚未完整，因此明确固定已发布候选；本库仅运行
+native，没有 npm runtime 配对。Snapshot、Rust、Cargo 依赖/lock 与 ABI/protocol 不变，
+在原静态门禁中补充全部定义检查，不另发模块版本。
 模块自身的验证不代表所有消费者都已完成严格迁移。
 先执行 `caps --strict --ci`、`caps verify --toolchain`，再执行两个 native entry
 的 `--check-only`；`demo` 只做静态检查，不以启动长期监听器作为构建门禁。
@@ -149,7 +154,7 @@ CI 在复制真实 dylib 后执行 `calcit test 'wss.core/wss-each!' --require-m
 本模块通过自身门禁不表示下游应用已完成迁移或部署；消费者仍需安装明确的正式模块版本，
 使用匹配的 CLI/runtime 重跑严格检查与真实业务验收。
 
-CI 的 Actions 使用正式标签；Calcit 工具链独立固定上述正式版本。标签可移动的供应链
+CI 的 Actions 使用正式标签；Calcit 工具链独立固定上述候选版本。标签可移动的供应链
 风险仍然存在；只读权限和不保留 checkout 凭据并不等同于不可变版本。
 
 For task lifecycle, backpressure, metrics, and revision-aware resync guidance,
@@ -159,7 +164,7 @@ the module is installed.
 Run buildin demo with:
 
 ```bash
-calcit calcit.cirru --init-fn wss.test/demo!
+calcit calcit.cirru --entry demo
 ```
 
 ### Workflow
