@@ -1,6 +1,6 @@
+#!/usr/bin/env sh
+set -eu
 
-rm -rfv dylibs/ && \
-cargo build --release && \
-mkdir -p dylibs/ && \
-ls target/release/ && \
+cargo build --release --locked
+mkdir -p dylibs/
 cp -v target/release/*.* dylibs/
