@@ -61,7 +61,7 @@ jobs:
 
       - run: cargo clippy --locked --all-targets -- -D warnings
 
-      - run: cargo build --locked --release
+      - run: ./build.sh
 
       - name: Verify C-safe exports only
         run: |
@@ -73,8 +73,6 @@ jobs:
           grep -q ' wss_send_calcit_ffi_v1$' <<<"$exports"
           grep -q ' wss_metrics_calcit_ffi_v1$' <<<"$exports"
           ! grep -Eq ' (abi_version|edn_version|wss_serve|wss_each|wss_send|wss_metrics)$' <<<"$exports"
-
-      - run: mkdir -p dylibs/ && cp -v target/release/libcalcit_wss.so dylibs/
 
       - run: calcit calcit.cirru
 
