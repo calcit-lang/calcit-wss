@@ -34,6 +34,7 @@ jobs:
           calcit calcit.cirru edit format
           git diff --exit-code -- calcit.cirru
           calcit calcit.cirru --check-only
+          calcit calcit.cirru --check-only --all-defs
           calcit calcit.cirru --entry demo --check-only
           calcit calcit.cirru --check-only --ns 'wss.$meta' --ns wss.core --ns wss.test --ns wss.util --format edn
           calcit calcit.cirru analyze weak-types --only coverage --summary-only --format json
