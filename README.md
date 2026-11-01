@@ -2,16 +2,16 @@
 
 > Rust library for Calcit runtime.
 
-### 正式 0.32.1 配对：使用者影响
+### 正式 0.34.0 配对：使用者影响
 
-候选模块 **0.2.40** 要求正式 **Calcit 0.32.1**；下游同步 deps.cirru 的精确工具链声明并
+候选模块 **0.2.41** 要求正式 **Calcit 0.34.0**；下游同步 deps.cirru 的精确工具链声明并
 保留 Caps strict。本库仅运行 native，没有 npm runtime / JS/WASM 配对，不部署业务应用。
 候选号不等于已发布版本。
 
-Calcit 0.32.1 的 native `identical?` 对容器采用身份比较；需要结构值比较的消费者应使用 `=`。
+自 Calcit 0.32.1 起，native `identical?` 对容器采用身份比较；需要结构值比较的消费者应使用 `=`。
 本次未改变本库的运行逻辑，不代表下游已经完成此语义检查。
 
-主线已采用当前类型标注，0.32.1 官方 formatter 无需再次改写 Snapshot；原 smoke 继续使用紧凑 Fn / Option 写法；
+本次用 0.34.0 官方 formatter 规范五个 Struct/Enum 声明中的类型名，保留全部元数据；原 smoke 继续使用紧凑 Fn / Option 写法；
 监听地址、消息、发送结果、指标、受检 Unit、背压及
 取消清理合同不变。默认地址仍为 `0.0.0.0`，本地验收必须显式传入 loopback。
 实现提供普通 `ws://` 监听，不自带 TLS；模块名不代表新增 `wss://` 能力。
@@ -144,15 +144,15 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
-本轮工具链使用正式 Calcit 0.32.1；监听地址能力不依赖本轮升级。连接、发送、背压、
+本轮工具链使用正式 Calcit 0.34.0；监听地址能力不依赖本轮升级。连接、发送、背压、
 取消顺序和 `wss-each!` 的受检 Unit 启动结果保持不变，不涉及业务部署。
 
 `wss-metrics` 在真实 native 返回处递归检查 `WssMetrics` 及其嵌套字段；原生返回不符合既有契约时立即报错，不只依赖返回类型声明。三个 demo/测试副作用函数在原有操作后实际返回声明的 Unit。
 
 现有 native 协议返回 Struct，而 `decode-map-as` 不接受 Struct。指标边界保留协议，使用 `format-cirru-edn` 与 `parse-cirru-edn-as` 做具名递归解码，因此每次诊断快照增加一次序列化/解析成本；未在消息发送热路径加入这项操作。
 
-本仓库候选配对正式 Calcit 0.32.1、WSS 0.2.40、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
-本次只更新 deps.cirru 与说明；Snapshot、Rust、Cargo 依赖/lock、测试、工作流与 ABI/protocol 字节不变。正式配对保留全部 19 定义、
+本仓库候选配对正式 Calcit 0.34.0、WSS 0.2.41、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
+本次更新 deps.cirru、说明与五个声明的规范类型名；Snapshot 的运行逻辑及元数据、Rust、Cargo 依赖/lock、测试、工作流与 ABI/protocol 保持。正式配对保留全部 19 定义、
 7 项附带测试、Rust 14 项及原真实回环 WS 集成门禁；验收以本次精确提交的 Linux CI 为准。
 消费者发布说明需结合精确模块tag，而非仅凭主线版本声明。
 模块自身的验证不代表所有消费者都已完成严格迁移。

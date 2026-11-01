@@ -15,26 +15,26 @@
     'wss.core $ %{} 'FileEntry
       :defs $ {}
         'WssClientMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct WssClientMetrics (:client-id 'Number) (:queue-depth 'Number) (:queue-bytes 'Number) (:oldest-age-ms 'Number)
+          :code $ quote $ defstruct WssClientMetrics (:client-id Number) (:queue-depth Number) (:queue-bytes Number) (:oldest-age-ms Number)
           :examples $ []
           :schema $ quote StructDef
         'WssDisconnectMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct WssDisconnectMetrics (:peer-closed 'Number) (:server-cancelled 'Number) (:local-close 'Number) (:command-channel-closed 'Number) (:read-failed 'Number) (:write-failed 'Number)
+          :code $ quote $ defstruct WssDisconnectMetrics (:peer-closed Number) (:server-cancelled Number) (:local-close Number) (:command-channel-closed Number) (:read-failed Number) (:write-failed Number)
           :examples $ []
           :schema $ quote StructDef
         'WssEvent $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defenum WssEvent (:connect 'Number) (:disconnect 'Number) (:message 'Number 'String) (:blob 'Number 'Buffer)
+          :code $ quote $ defenum WssEvent (:connect Number) (:disconnect Number) (:message Number String) (:blob Number Buffer)
           :examples $ []
           :schema $ quote EnumDef
         'WssMetrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct WssMetrics
             :clients $ quote $ List WssClientMetrics
-            :send-outcomes 'WssSendMetrics
-            :disconnect-reasons 'WssDisconnectMetrics
+            :send-outcomes WssSendMetrics
+            :disconnect-reasons WssDisconnectMetrics
           :examples $ []
           :schema $ quote StructDef
         'WssSendMetrics $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct WssSendMetrics (:accepted 'Number) (:backpressured 'Number) (:too-large 'Number) (:closed 'Number)
+          :code $ quote $ defstruct WssSendMetrics (:accepted Number) (:backpressured Number) (:too-large Number) (:closed Number)
           :examples $ []
           :schema $ quote StructDef
         'WssSendOutcome $ %{} 'CodeEntry
