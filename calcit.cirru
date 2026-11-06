@@ -28,7 +28,7 @@
           :schema $ quote EnumDef
         'WssMetrics $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct WssMetrics
-            :clients $ quote $ List WssClientMetrics
+            :clients $ List WssClientMetrics
             :send-outcomes WssSendMetrics
             :disconnect-reasons WssDisconnectMetrics
           :examples $ []
