@@ -55,7 +55,7 @@ grep -q 'W_FN_ARG_TYPE_MISMATCH' "$smoke_dir/wrong-bind-type.log"
   wss.core :refer $ wss-serve! wss-each! wss-send! wss-metrics
 
 let
-    task-ref $ ref $ assert-type (Option :none) $ quote $ Option FfiTask
+    task-ref $ ref $ assert-type (Option :none) $ Option FfiTask
     each-count $ ref 0
     task $ wss-serve!
       {} (:port 19001)
@@ -147,7 +147,7 @@ smoke_log="$smoke_dir/calcit-wss-callback-error.log"
 "$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
   wss.core :refer $ wss-serve! wss-each!
 let
-    task-ref $ ref $ assert-type (Option :none) $ quote $ Option FfiTask
+    task-ref $ ref $ assert-type (Option :none) $ Option FfiTask
     task $ wss-serve!
       {} (:port 19002)
       fn (event)
