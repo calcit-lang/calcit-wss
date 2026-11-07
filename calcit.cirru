@@ -126,7 +126,8 @@
           :ffi $ {} (:backend :native) (:invoke :async) (:symbol |wss_serve) (:transport :async-task-v1)
           :schema $ quote $ Fn (Map Tag Number)
             Fn wss.core/WssEvent $ -> Unit
-            , & String (-> calcit.core/FfiTask)
+            & String
+            -> calcit.core/FfiTask
           :tests $ []
             %{} 'TestEntry (:name |rejects-extra-bind-addresses)
               :code $ quote $ assert= true
