@@ -2,10 +2,13 @@
 
 > Rust library for Calcit runtime.
 
-### 正式 0.38.0 配对：使用者影响
+### Calcit 0.40.0 使用者影响
 
-候选模块 **0.2.44** 要求正式 **Calcit 0.38.0**；下游同步 deps.cirru 的精确工具链声明并
-保留 Caps strict。本库仅运行 native，没有 npm runtime / JS/WASM 配对，不部署业务应用。
+候选模块 **0.2.45** 配对正式 Calcit **0.40.0**。消费者同步 CLI 后通过 Caps 构建当前平台的原生库。WebSocket 消息、回调、取消顺序和 C-safe ABI 保持原合同。已发布的 0.2.44 对应 Calcit 0.37.0。
+
+### 历史：主分支的 Calcit 0.38.0 配对
+
+此前主分支使用正式 **Calcit 0.38.0** 并保留 Caps strict。本库仅运行 native，没有 npm runtime / JS/WASM 配对，不部署业务应用。
 候选号不等于已发布版本。
 
 自 Calcit 0.32.1 起，native `identical?` 对容器采用身份比较；需要结构值比较的消费者应使用 `=`。
