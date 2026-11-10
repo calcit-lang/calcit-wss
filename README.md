@@ -2,9 +2,9 @@
 
 > Rust library for Calcit runtime.
 
-### Calcit 0.40.0 使用者影响
+### Calcit 0.41.0 使用者影响
 
-候选模块 **0.2.45** 配对正式 Calcit **0.40.0**。消费者同步 CLI 后通过 Caps 构建当前平台的原生库。WebSocket 消息、回调、取消顺序和 C-safe ABI 保持原合同。已发布的 0.2.44 对应 Calcit 0.37.0。
+候选模块 **0.2.46** 配对正式 Calcit **0.41.0**。消费者同步 CLI 后通过 Caps 构建当前平台的原生库。WebSocket 消息、回调、取消顺序和 C-safe ABI 保持原合同。已发布的 0.2.45 对应 Calcit 0.40.0。
 
 ### 历史：主分支的 Calcit 0.38.0 配对
 
