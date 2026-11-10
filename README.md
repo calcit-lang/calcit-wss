@@ -147,15 +147,15 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
-本轮工具链使用正式 Calcit 0.38.0；监听地址能力不依赖本轮升级。连接、发送、背压、
+当前工具链为正式 Calcit 0.41.0，模块候选为 WSS 0.2.46，使用 Caps 0.1.1、stable Rust 和已提交的 Cargo.lock。
+监听地址能力已在早期版本提供。连接、发送、背压、
 取消顺序和 `wss-each!` 的受检 Unit 启动结果保持不变，不涉及业务部署。
 
 `wss-metrics` 在真实 native 返回处递归检查 `WssMetrics` 及其嵌套字段；原生返回不符合既有契约时立即报错，不只依赖返回类型声明。三个 demo/测试副作用函数在原有操作后实际返回声明的 Unit。
 
 现有 native 协议返回 Struct，而 `decode-map-as` 不接受 Struct。指标边界保留协议，使用 `format-cirru-edn` 与 `parse-cirru-edn-as` 做具名递归解码，因此每次诊断快照增加一次序列化/解析成本；未在消息发送热路径加入这项操作。
 
-本仓库候选配对正式 Calcit 0.38.0、WSS 0.2.44、Caps 0.1.1，使用 stable Rust 和已提交的 Cargo.lock。
-本次更新工具链，迁移 `wss-serve!` 的可变参数类型和原 smoke 中的复合类型引用。保留 Rust、Cargo 依赖与锁文件、工作流和 ABI。现有事件、发送结果和指标已具名建模，本轮没有新增 Dynamic 或推测性的 union。正式配对保留全部 19 定义、
+在历史 Calcit 0.38.0 / WSS 0.2.44 迁移中，项目调整了 `wss-serve!` 的可变参数类型和原 smoke 中的复合类型引用。保留 Rust、Cargo 依赖与锁文件、工作流和 ABI。现有事件、发送结果和指标已具名建模，本轮没有新增 Dynamic 或推测性的 union。正式配对保留全部 19 定义、
 7 项附带测试、Rust 14 项及原真实回环 WS 集成门禁；验收以本次精确提交的 Linux CI 为准。
 本地 0.38.0 全部 19 定义、完整 strict、零 unresolved Dynamic/deprecated、Rust 14 项、七项附带测试、Clippy、release 构建和原回环 WS smoke 均通过；Linux C-safe 导出检查仍以原 CI 为准。
 消费者发布说明需结合精确模块 tag，而非仅凭主线版本声明。
