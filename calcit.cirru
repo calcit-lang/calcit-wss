@@ -95,7 +95,7 @@
               , 'WssMetrics
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_metrics) (:transport :edn-buffer-v1)
-          :schema $ quote $ Fn (-> wss.core/WssMetrics)
+          :schema $ quote $ Fn (-> WssMetrics)
         'wss-send! $ %{} 'CodeEntry
           :doc "|Try to enqueue a text message for one WebSocket client. Returns WssSendOutcome; backpressured and too-large are normal flow-control results."
           :code $ quote $ defn wss-send! (client message)
@@ -109,7 +109,7 @@
                 _ $ raise $ str |unexpected-wss-send-outcome: outcome
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :sync) (:symbol |wss_send) (:transport :edn-buffer-v1)
-          :schema $ quote $ Fn Number String (-> wss.core/WssSendOutcome)
+          :schema $ quote $ Fn Number String (-> WssSendOutcome)
         'wss-serve! $ %{} 'CodeEntry
           :doc "|启动可取消的原生 WebSocket 服务；参数为 Map<Tag,Number> 选项、WssEvent -> Unit 回调，以及可省略的一个 String IP 地址。省略地址仍监听 0.0.0.0，端口默认 9001；显式使用 127.0.0.1 可限制为本机。仅接受 IPv4/IPv6 字面量，不解析域名、URL 或带端口文本。返回 FfiTask；通过 .cancel! / .cancel-with! 停止并清理连接。"
           :code $ quote $ defn wss-serve! (options cb & bind-addresses)
@@ -125,9 +125,9 @@
           :examples $ []
           :ffi $ {} (:backend :native) (:invoke :async) (:symbol |wss_serve) (:transport :async-task-v1)
           :schema $ quote $ Fn (Map Tag Number)
-            Fn wss.core/WssEvent $ -> Unit
+            Fn WssEvent $ -> Unit
             & String
-            -> calcit.core/FfiTask
+            -> FfiTask
           :tests $ []
             %{} 'TestEntry (:name |rejects-extra-bind-addresses)
               :code $ quote $ assert= true
