@@ -2,9 +2,9 @@
 
 > Rust library for Calcit runtime.
 
-### Calcit 0.41.0 使用者影响
+### Calcit 0.41.1 使用者影响
 
-候选模块 **0.2.46** 配对正式 Calcit **0.41.0**。消费者同步 CLI 后通过 Caps 构建当前平台的原生库。WebSocket 消息、回调、取消顺序和 C-safe ABI 保持原合同。已发布的 0.2.45 对应 Calcit 0.40.0。
+候选模块 **0.2.46** 配对正式 Calcit **0.41.1**。消费者同步 CLI 后通过 Caps 构建当前平台的原生库。WebSocket 消息、回调、取消顺序和 C-safe ABI 保持原合同。已发布的 0.2.45 对应 Calcit 0.40.0。
 
 ### 历史：主分支的 Calcit 0.38.0 配对
 
@@ -147,7 +147,7 @@ Install to `~/.config/calcit/modules/`, compile and provide `*.{dylib,so}` file 
 
 ### Develop
 
-当前工具链为正式 Calcit 0.41.0，模块候选为 WSS 0.2.46，使用 Caps 0.1.1、stable Rust 和已提交的 Cargo.lock。
+当前工具链为正式 Calcit 0.41.1，模块候选为 WSS 0.2.46，使用 Caps 0.1.1、stable Rust 和已提交的 Cargo.lock。
 监听地址能力已在早期版本提供。连接、发送、背压、
 取消顺序和 `wss-each!` 的受检 Unit 启动结果保持不变，不涉及业务部署。
 
