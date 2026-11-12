@@ -32,7 +32,7 @@ wss-each! \$ $callback" >"$smoke_dir/wrong-$callback_type.log" 2>&1; then
     echo "Calcit accepted an invalid iteration callback: $callback_type" >&2
     exit 1
   fi
-  grep -q 'W_FN_ARG_TYPE_MISMATCH' "$smoke_dir/wrong-$callback_type.log"
+  grep -q 'E_FN_ARG_TYPE_MISMATCH' "$smoke_dir/wrong-$callback_type.log"
 done
 
 if "$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
@@ -49,7 +49,7 @@ wss-serve! ({}) (fn (event) &unit) 7' >"$smoke_dir/wrong-bind-type.log" 2>&1; th
   echo "Calcit accepted a non-String bind address" >&2
   exit 1
 fi
-grep -q 'W_FN_ARG_TYPE_MISMATCH' "$smoke_dir/wrong-bind-type.log"
+grep -q 'E_FN_ARG_TYPE_MISMATCH' "$smoke_dir/wrong-bind-type.log"
 
 "$calcit_bin" calcit.cirru eval --dep ./ -- 'ns app.main $ :require
   wss.core :refer $ wss-serve! wss-each! wss-send! wss-metrics
